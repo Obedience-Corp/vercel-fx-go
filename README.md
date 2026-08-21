@@ -133,7 +133,7 @@ written against).
 | --- | --- |
 | `ask` | unresolved sensitive calls should reach the client. See the caveat below. |
 | `auto` | the default: rules first, then the billed reviewer model |
-| `yolo` | no permission checks and no sandbox. Requires the `dangerous` subpackage |
+| `yolo` | no permission checks and no sandbox. Requires `AllowDangerousMode` on `AskOptions` or `ACPConfig`. The `dangerous` subpackage is the recommended path because it additionally checks `FX_GO_ENABLE_DANGEROUS=i-accept-all-risks` and refuses when `GO_ENV` or `NODE_ENV` is `production`, which is a best-effort guard and not a sandbox |
 
 Known fx v0.0.4 limitation: in ACP `ask` mode the SDK never observed a
 `session/request_permission` request. Four probes were run on 2026-08-21; three
