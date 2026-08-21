@@ -1,0 +1,1 @@
+{"output":"Created `hello.txt` containing the single word \"hi\".","exit_code":0,"model":"zai/glm-5.2","session_id":"","steps":1,"tool_calls":[{"name":"write_file","status":"success"}],"recovery":{"state":"recovered","kind":"auto_recovered","attempt":3,"attempt_limit":10,"delay_seconds":0,"durable":false,"message":"✓ recovered · succeeded on attempt 3/10"}}

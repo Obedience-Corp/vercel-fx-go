@@ -1,0 +1,3 @@
+{"schema_version":1,"kind":"coverage","started_at_ms":1787204187069}
+{"schema_version":1,"kind":"generation","fact":{"id":"gen_01M0ETQ97JGEFVFTHNTQZKCCBD","created_at_ms":1787204184000,"model":"zai/glm-5.2","input_tokens":19805,"output_tokens":278,"cache_read_tokens":11904,"cache_write_tokens":0,"reasoning_tokens":0,"billable_web_search_calls":0,"total_cost":0}}
+{"schema_version":1,"kind":"generation","fact":{"id":"gen_01M0ETQD9F7YT564Q3G1387TRX","created_at_ms":1787204188000,"model":"zai/glm-5.2","input_tokens":20626,"output_tokens":142,"cache_read_tokens":11904,"cache_write_tokens":0,"reasoning_tokens":0,"billable_web_search_calls":0,"total_cost":0}}

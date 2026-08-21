@@ -1,0 +1,1 @@
+{"output":"API request failed · HTTP 404 · model_not_found: Model 'bogus/model' not found\n","exit_code":1,"model":"bogus/model","session_id":"","steps":0,"tool_calls":[]}
