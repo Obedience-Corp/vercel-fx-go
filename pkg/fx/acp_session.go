@@ -152,7 +152,8 @@ func newACPSession(cmd *exec.Cmd, stdin io.WriteCloser, stdout io.ReadCloser, cf
 	}
 }
 
-// Updates streams session/update notifications. Drain it while a prompt runs.
+// Updates streams session/update notifications. The channel is buffered to 64
+// and drops rather than blocks the read pump, so drain it while a prompt runs.
 func (s *ACPSession) Updates() <-chan SessionUpdate { return s.updatesCh }
 
 // Notifications streams notifications other than session/update.

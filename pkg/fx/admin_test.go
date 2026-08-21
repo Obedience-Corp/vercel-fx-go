@@ -2,6 +2,7 @@ package fx
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -229,4 +230,24 @@ func TestAdminHonorsCancellation(t *testing.T) {
 	cancel()
 	_, err := client.Status(ctx)
 	requireFxError(t, err, KindInterrupted)
+}
+
+func TestRunJSONRejectsEmptyArgs(t *testing.T) {
+	client := mockClient(t, "status")
+	if err := client.RunJSON(context.Background(), nil); err == nil {
+		t.Fatal("expected a validation error for an empty subcommand")
+	} else {
+		requireFxError(t, err, KindValidation)
+	}
+}
+
+func TestRunJSONIsAnEscapeHatch(t *testing.T) {
+	client := mockClient(t, "status")
+	var raw json.RawMessage
+	if err := client.RunJSON(context.Background(), &raw, "status", "--json"); err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) == 0 {
+		t.Fatal("RunJSON returned no payload")
+	}
 }

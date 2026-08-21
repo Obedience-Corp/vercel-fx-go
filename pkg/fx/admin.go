@@ -232,6 +232,9 @@ func (c *Client) RunJSON(ctx context.Context, out any, args ...string) error {
 }
 
 func (c *Client) runJSON(ctx context.Context, out any, args ...string) *Error {
+	if len(args) == 0 {
+		return validationError("no fx subcommand was given")
+	}
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return &Error{Kind: KindInterrupted, Message: "context done before fx " + args[0], Original: ctxErr}
 	}
