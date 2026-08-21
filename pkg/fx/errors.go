@@ -211,13 +211,16 @@ func isAuthFailure(text string) bool {
 }
 
 func classifyText(result *AskResult, stderr string) string {
-	parts := make([]string, 0, 3)
+	parts := make([]string, 0, 4)
 	if result != nil {
 		if result.Error != "" {
 			parts = append(parts, result.Error)
 		}
 		if result.Output != "" {
 			parts = append(parts, result.Output)
+		}
+		if result.Recovery != nil && result.Recovery.Message != "" {
+			parts = append(parts, result.Recovery.Message)
 		}
 	}
 	if stderr != "" {

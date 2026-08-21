@@ -82,7 +82,11 @@ func SessionUsage(ctx context.Context, id string) (*UsageSnapshot, error) {
 	if jsonErr := json.Unmarshal(data, &parsed); jsonErr != nil {
 		return nil, validationErrorWith("decode "+path, jsonErr)
 	}
-	return validateUsageSchema(&parsed)
+	snapshot, schemaErr := validateUsageSchema(&parsed)
+	if schemaErr != nil {
+		return nil, schemaErr
+	}
+	return snapshot, nil
 }
 
 func validateUsageSchema(parsed *usageFile) (*UsageSnapshot, *Error) {

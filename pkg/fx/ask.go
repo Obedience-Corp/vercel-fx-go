@@ -31,7 +31,13 @@ func (r *AskResult) failureMessage() string {
 	if r.Error != "" {
 		return firstLine(r.Error)
 	}
-	return firstLine(r.Output)
+	if r.Output != "" {
+		return firstLine(r.Output)
+	}
+	if r.Recovery != nil {
+		return firstLine(r.Recovery.Message)
+	}
+	return ""
 }
 
 // ToolCall is one entry of AskResult.ToolCalls. Fields fx adds beyond name and

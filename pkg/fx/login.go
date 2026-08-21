@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"regexp"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // LoginCommand returns a configured "fx login" command for the host to attach
@@ -48,19 +50,45 @@ type LoginFlow struct {
 
 	cmd      *exec.Cmd
 	waitDone chan error
-	once     sync.Once
+	done     chan struct{}
+	waitOnce sync.Once
+	stopOnce sync.Once
 	err      error
 }
 
-// Wait blocks until the login process exits.
+// Wait blocks until the login process exits. It is safe to call more than once.
 func (f *LoginFlow) Wait() error {
-	f.once.Do(func() { f.err = <-f.waitDone })
+	f.waitOnce.Do(func() {
+		f.err = <-f.waitDone
+		close(f.done)
+	})
+	<-f.done
 	return f.err
 }
 
 // Close stops the login process without completing the flow.
 func (f *LoginFlow) Close() error {
-	return stopGracefully(f.cmd, f.waitDone)
+	f.stopOnce.Do(f.stop)
+	if err := f.Wait(); !isExpectedStopExit(err) {
+		return err
+	}
+	return nil
+}
+
+func (f *LoginFlow) stop() {
+	if f.cmd.Process == nil {
+		return
+	}
+	_ = f.cmd.Process.Signal(syscall.SIGTERM)
+	go func() {
+		select {
+		case <-f.done:
+		case <-time.After(5 * time.Second):
+			if f.cmd.Process != nil {
+				_ = f.cmd.Process.Kill()
+			}
+		}
+	}()
 }
 
 var authURLRe = regexp.MustCompile(`https://\S+`)
@@ -83,7 +111,7 @@ func (c *Client) LoginURL(ctx context.Context) (*LoginFlow, error) {
 	if startErr := cmd.Start(); startErr != nil {
 		return nil, transportError("start fx login", startErr)
 	}
-	flow := &LoginFlow{cmd: cmd, waitDone: make(chan error, 1)}
+	flow := &LoginFlow{cmd: cmd, waitDone: make(chan error, 1), done: make(chan struct{})}
 	go func() { flow.waitDone <- cmd.Wait() }()
 	return awaitLoginURL(ctx, flow, stdout, stderr)
 }
