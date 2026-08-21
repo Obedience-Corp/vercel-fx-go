@@ -1,0 +1,29 @@
+# Build artifacts
+bin/
+coverage/
+*.out
+*.test
+*.prof
+
+# Go workspace files (uncommitted)
+go.work
+go.work.sum
+
+# Editor & OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Local environment
+.env
+.env.local
+
+# Mock binary build output
+test/mockfx/bin/
+/mockfx
+/fx-mock
+/main
+
+# fx local state must never be committed
+.fx/
