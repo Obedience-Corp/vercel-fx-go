@@ -11,7 +11,8 @@ Real transcripts copied from the design evidence package:
 - `ask-mode-stall.jsonl`: a full `FX_PERMISSION_MODE=ask` session, including
   `session/set_mode` with `modeId: ask`, in which fx announced the write_file
   tool call as `status: pending` and then never sent `session/request_permission`
-  and never returned a prompt result. Captured 2026-08-21 over three attempts.
+  and never returned a prompt result. Captured 2026-08-21. Four probes were run;
+  three reached a tool call and all three stalled the same way.
 
 Scripts the mock binary replays, composed from the transcripts above so one
 session id is used throughout:
@@ -22,4 +23,7 @@ session id is used throughout:
 - `request-permission.UNVERIFIED.jsonl`: the permission handshake built from the
   ACP spec shape in design doc 02. fx v0.0.4 was never observed sending
   `session/request_permission`, so this script is not a capture. Replace it
-  with a real transcript when a build emits one.
+  with a real transcript when a build emits one, and drop the marker from the
+  filename when you do.
+- `unknown-request.jsonl`: an agent request for a capability the client never
+  advertised, so the SDK must answer JSON-RPC -32601

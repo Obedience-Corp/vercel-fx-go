@@ -133,12 +133,19 @@ kind is `allow_once`, `allow_always`, `reject_once`, or `reject_always`, and the
 client answers `{"outcome":{"outcome":"selected","optionId":"..."}}` or
 `{"outcome":{"outcome":"cancelled"}}`.
 
-**fx v0.0.4 was never observed sending it.** Three probes on 2026-08-21 with
-`FX_PERMISSION_MODE=ask`, one of which also issued `session/set_mode` with
-`modeId: ask` and got an accepted `null` result, all reached the same state: fx
-emitted `tool_call` with `status: pending` for a `write_file` call, then sent
-nothing further for the full ten minute probe window and never returned a prompt
-result. The real transcript is `test/testdata/acp/ask-mode-stall.jsonl`.
+**fx v0.0.4 was never observed sending it.** Four probes were run on
+2026-08-21 with `FX_PERMISSION_MODE=ask`. One never reached a tool call because
+the upstream provider exhausted recovery first. The other three all reached the
+same state: fx emitted `tool_call` with `status: pending` for a `write_file`
+call, then sent nothing further for the rest of the ten minute probe window and
+never returned a prompt result. One of those three first issued
+`session/set_mode` with `modeId: ask` and got an accepted `null` result, so
+selecting the mode explicitly does not change the outcome. The real transcript
+of that run is `test/testdata/acp/ask-mode-stall.jsonl`.
+
+The stall is not a provider artifact. In two of the three, the same session had
+already logged `modelResponseRecovery` with `state: recovered` before the tool
+call, so the model turn itself completed and only the permission step hung.
 
 Consequences for the SDK:
 

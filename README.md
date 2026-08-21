@@ -136,11 +136,12 @@ written against).
 | `yolo` | no permission checks and no sandbox. Requires the `dangerous` subpackage |
 
 Known fx v0.0.4 limitation: in ACP `ask` mode the SDK never observed a
-`session/request_permission` request. Across three probes, including one that
-issued `session/set_mode` with `modeId: ask`, fx announced the tool call with
-`status: pending` and then never asked the client and never ended the turn. The
-handler path is implemented and tested against a spec-shaped script; see
-`docs/ACP.md`.
+`session/request_permission` request. Four probes were run on 2026-08-21; three
+got past the upstream outage to a real tool call, including one that first
+issued `session/set_mode` with `modeId: ask`. In all three, fx announced the
+tool call with `status: pending` and then never asked the client and never
+ended the turn. The handler path is implemented and tested against a
+spec-shaped script; see `docs/ACP.md`.
 
 Yolo mode lives behind a second gate:
 
