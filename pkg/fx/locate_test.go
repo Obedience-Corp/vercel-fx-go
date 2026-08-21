@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestLocateBinaryPrefersInstallDir(t *testing.T) {
+func TestLocateBinaryFallsBackToInstallDir(t *testing.T) {
 	dir := t.TempDir()
 	binary := filepath.Join(dir, "fx")
 	if err := os.WriteFile(binary, []byte("#!/bin/sh\n"), 0o755); err != nil {
