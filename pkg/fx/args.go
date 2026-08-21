@@ -3,6 +3,7 @@ package fx
 import (
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // BuildAskArgs renders the argv for "fx ask", leading global flags first and
@@ -33,8 +34,10 @@ func BuildACPArgs(cfg *ACPConfig) []string {
 	return args
 }
 
-// BuildEnv renders the FX_* overrides the SDK manages for a run. The upgrade
-// check and the browser launcher are always disabled.
+// BuildEnv renders the FX_* overrides the SDK manages for a run. Managed values
+// are appended last and any conflicting entry is removed first, so each managed
+// key appears exactly once; os/exec also resolves duplicates last-wins. The
+// upgrade check and the browser launcher are always disabled.
 func BuildEnv(opts *AskOptions) []string {
 	if opts == nil {
 		return managedEnv("", PermissionUnset, nil, nil)
@@ -124,17 +127,50 @@ func askSessionArgs(opts *AskOptions) []string {
 }
 
 func managedEnv(model string, mode PermissionMode, maxSteps *int, extra []string) []string {
-	env := append([]string(nil), extra...)
+	managed := make([]string, 0, 5)
 	if model != "" {
-		env = append(env, "FX_MODEL="+model)
+		managed = append(managed, "FX_MODEL="+model)
 	}
 	if mode != PermissionUnset {
-		env = append(env, "FX_PERMISSION_MODE="+string(mode))
+		managed = append(managed, "FX_PERMISSION_MODE="+string(mode))
 	}
 	if maxSteps != nil {
-		env = append(env, "FX_MAX_AGENT_STEPS="+strconv.Itoa(*maxSteps))
+		managed = append(managed, "FX_MAX_AGENT_STEPS="+strconv.Itoa(*maxSteps))
 	}
-	return append(env, "FX_AUTO_UPGRADE=0", "FX_NO_OPEN_BROWSER=1")
+	managed = append(managed, "FX_AUTO_UPGRADE=0", "FX_NO_OPEN_BROWSER=1")
+	env := stripEnvKeys(append([]string(nil), extra...), envKeys(managed)...)
+	return append(env, managed...)
+}
+
+func envKeys(env []string) []string {
+	keys := make([]string, 0, len(env))
+	for _, entry := range env {
+		if name, _, ok := strings.Cut(entry, "="); ok {
+			keys = append(keys, name)
+		}
+	}
+	return keys
+}
+
+func stripEnvKeys(env []string, keys ...string) []string {
+	if len(env) == 0 || len(keys) == 0 {
+		return env
+	}
+	drop := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		drop[key] = struct{}{}
+	}
+	out := make([]string, 0, len(env))
+	for _, entry := range env {
+		name, _, ok := strings.Cut(entry, "=")
+		if ok {
+			if _, found := drop[name]; found {
+				continue
+			}
+		}
+		out = append(out, entry)
+	}
+	return out
 }
 
 func sortedKeys(m map[string]string) []string {

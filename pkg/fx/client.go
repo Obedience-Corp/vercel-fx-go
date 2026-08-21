@@ -55,6 +55,7 @@ func (c *Client) workDir(override string) (string, *Error) {
 func (c *Client) envWith(managed []string) []string {
 	base := append([]string(nil), os.Environ()...)
 	base = append(base, c.Env...)
+	base = stripEnvKeys(base, envKeys(managed)...)
 	return append(base, managed...)
 }
 
