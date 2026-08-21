@@ -43,3 +43,19 @@ func rawBool(raw map[string]json.RawMessage, keys ...string) bool {
 	}
 	return false
 }
+
+func rawLiteral(raw map[string]json.RawMessage, key string) string {
+	value, ok := raw[key]
+	if !ok || string(value) == "null" {
+		return ""
+	}
+	return string(value)
+}
+
+func rawNonNull(raw map[string]json.RawMessage, key string) json.RawMessage {
+	value, ok := raw[key]
+	if !ok || string(value) == "null" {
+		return nil
+	}
+	return append(json.RawMessage(nil), value...)
+}

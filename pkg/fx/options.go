@@ -147,3 +147,8 @@ func cloneAskOptions(o *AskOptions) *AskOptions {
 	}
 	return &out
 }
+
+// Clone returns a deep copy of the options.
+func (o *AskOptions) Clone() *AskOptions {
+	return cloneAskOptions(o)
+}
