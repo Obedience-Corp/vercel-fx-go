@@ -1,0 +1,11 @@
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request · attempt 1/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 1s · attempt 2/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 2s · attempt 3/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 4s · attempt 4/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 8s · attempt 5/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 16s · attempt 6/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 30s · attempt 7/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 30s · attempt 8/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · retrying request in 30s · attempt 9/10
+[notice] ⚠ Provider unavailable · HTTP 503 · service_unavailable_error: Service temporarily unavailable. Please try again shortly. · recovery paused after 10/10 attempts
+[notice] This run was started with --no-save, so its recovery context cannot be resumed after exit.
