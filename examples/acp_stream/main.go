@@ -46,6 +46,14 @@ func main() {
 		stream(session)
 	}()
 
+	runTurn(ctx, session, cwd, prompt)
+	if err := session.Close(); err != nil {
+		exit(err)
+	}
+	wg.Wait()
+}
+
+func runTurn(ctx context.Context, session *fx.ACPSession, cwd, prompt string) {
 	if _, err := session.Initialize(ctx, fx.ClientCapabilities{}, nil); err != nil {
 		exit(err)
 	}
@@ -58,10 +66,6 @@ func main() {
 		exit(err)
 	}
 	fmt.Fprintf(os.Stderr, "\nstop reason: %s\n", result.StopReason)
-	if err := session.Close(); err != nil {
-		exit(err)
-	}
-	wg.Wait()
 }
 
 func stream(session *fx.ACPSession) {
