@@ -1,0 +1,6 @@
+{"jsonrpc":"2.0","id":4,"method":"session/prompt","params":{"sessionId":"S","prompt":[{"type":"text","text":"Create a file named acp_yolo.txt containing the single word hi using write_file, then reply DONE."}]}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"S","update":{"sessionUpdate":"session_info_update","_meta":{"fx":{"modelResponseRecovery":{"state":"recovered","kind":"auto_recovered","attempt":6,"attemptLimit":10,"durable":true,"message":"✓ recovered · succeeded on attempt 6/10"}}}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"S","update":{"sessionUpdate":"tool_call","toolCallId":"call_8e51d391221248faa1951df2","title":"Writing","kind":"edit","status":"pending"}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"S","update":{"sessionUpdate":"tool_call_update","toolCallId":"call_8e51d391221248faa1951df2","status":"in_progress"}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"S","update":{"sessionUpdate":"tool_call_update","toolCallId":"call_8e51d391221248faa1951df2","status":"completed","content":[{"type":"content","content":{"type":"text","text":"wrote acp_yolo.txt (2 bytes)"}}]}}}
+{"jsonrpc":"2.0","id":4,"result":{"stopReason":"end_turn"}}
