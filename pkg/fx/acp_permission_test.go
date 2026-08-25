@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"go.uber.org/goleak"
 )
@@ -17,7 +18,7 @@ func TestACPPermissionHandlerAllows(t *testing.T) {
 	replyPath := filepath.Join(t.TempDir(), "reply.json")
 	var seen *PermissionRequest
 	var mu sync.Mutex
-	client := mockClient(t, "request-permission.UNVERIFIED")
+	client := mockClient(t, "request-permission")
 	client.Env = append(client.Env, "FX_MOCK_PERM_REPLY="+replyPath)
 	session, err := client.StartACP(context.Background(), &ACPConfig{
 		PermissionHandler: func(_ context.Context, req *PermissionRequest) (PermissionOutcome, error) {
@@ -67,7 +68,10 @@ func TestACPPermissionHandlerAllows(t *testing.T) {
 	if request.ToolCall == nil || request.ToolCall.Kind != "edit" || request.ToolCall.Title != "Writing" {
 		t.Fatalf("tool call %+v", request.ToolCall)
 	}
-	if len(request.Options) != 4 {
+	if string(request.ToolCall.RawInput) != `{"path":"perm.txt","content":"hi"}` {
+		t.Fatalf("raw input %s", request.ToolCall.RawInput)
+	}
+	if len(request.Options) != 3 {
 		t.Fatalf("options %+v", request.Options)
 	}
 	if len(request.Raw) == 0 {
@@ -79,7 +83,7 @@ func TestACPPermissionHandlerAllows(t *testing.T) {
 func TestACPDefaultPermissionHandlerRejects(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	replyPath := filepath.Join(t.TempDir(), "reply.json")
-	client := mockClient(t, "request-permission.UNVERIFIED")
+	client := mockClient(t, "request-permission")
 	client.Env = append(client.Env, "FX_MOCK_PERM_REPLY="+replyPath)
 	session, err := client.StartACP(context.Background(), &ACPConfig{})
 	if err != nil {
@@ -98,6 +102,54 @@ func TestACPDefaultPermissionHandlerRejects(t *testing.T) {
 		t.Fatalf("collect: %v", err)
 	}
 	assertPermissionReply(t, replyPath, "selected", "reject_once")
+}
+
+func TestACPCloseDoesNotWaitForBlockedPermissionHandler(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	client := mockClient(t, "request-permission")
+	client.Env = append(client.Env, "FX_MOCK_PERM_TIMEOUT_MS=100")
+	session, err := client.StartACP(context.Background(), &ACPConfig{
+		PermissionHandler: func(_ context.Context, _ *PermissionRequest) (PermissionOutcome, error) {
+			close(started)
+			<-release
+			return PermissionOutcome{Outcome: OutcomeCancelled}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if _, err := session.Initialize(ctx, ClientCapabilities{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	created, err := session.NewSession(ctx, t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	promptDone := make(chan error, 1)
+	go func() {
+		_, promptErr := session.CollectPrompt(ctx, created.SessionID, []PromptBlock{TextBlock("write perm.txt")})
+		promptDone <- promptErr
+	}()
+	<-started
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- session.Close() }()
+	select {
+	case closeErr := <-closeDone:
+		if closeErr != nil {
+			t.Fatalf("close: %v", closeErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Close waited for a permission handler that ignored cancellation")
+	}
+	close(release)
+	select {
+	case <-promptDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("prompt did not return after Close")
+	}
 }
 
 func assertPermissionReply(t *testing.T, path, wantOutcome, wantOption string) {

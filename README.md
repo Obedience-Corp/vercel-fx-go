@@ -1,5 +1,8 @@
 # vercel-fx-go
 
+[![CI](https://github.com/Obedience-Corp/vercel-fx-go/actions/workflows/ci.yml/badge.svg)](https://github.com/Obedience-Corp/vercel-fx-go/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/Obedience-Corp/vercel-fx-go/pkg/fx.svg)](https://pkg.go.dev/github.com/Obedience-Corp/vercel-fx-go/pkg/fx)
+
 Go SDK for the Vercel `fx` coding agent CLI (https://fx.sh, `vercel-labs/fx`).
 
 It wraps the installed `fx` binary the same way `grok-go-sdk` wraps `grok` and
@@ -14,7 +17,12 @@ Standard library only. The SDK never reads `~/.fx/auth.json` and never writes
 gets `FX_AUTO_UPGRADE=0` and `FX_NO_OPEN_BROWSER=1` so an SDK call can never
 upgrade your install or open a browser.
 
-Status: v0.1.0. The public API is unstable until v1.0.
+Compatibility target: fx v0.0.6. The SDK API is unstable until v1.0. Use
+`fx.TestedFXVersion` for an exact runtime compatibility check.
+
+This is an independent community project. It is not affiliated with or
+endorsed by Vercel. Vercel and fx names and marks belong to their respective
+owners.
 
 ## Requirements
 
@@ -28,16 +36,9 @@ fx login          # or export AI_GATEWAY_API_KEY
 
 ## Install
 
-This repository is private, so consumers need `GOPRIVATE` and an SSH rewrite:
-
 ```bash
-export GOPRIVATE=github.com/Obedience-Corp/*
-git config --global url."git@github.com:".insteadOf "https://github.com/"
 go get github.com/Obedience-Corp/vercel-fx-go@latest
 ```
-
-CI that builds a consumer needs the same two settings plus a read token or a
-deploy key for this repository.
 
 ## Quick start: one-shot ask
 
@@ -49,7 +50,7 @@ if err != nil {
 client.WorkingDir = repoDir // fx treats the process cwd as the primary workspace
 
 result, err := client.AskCtx(ctx, "Summarize README.md in one sentence.", &fx.AskOptions{
-    Model:  "zai/glm-5.2",
+    Model:  "your-provider/your-model",
     NoSave: true,
 })
 if result != nil && result.Recovery != nil {
@@ -78,7 +79,6 @@ with `Resume` plus `ContinueRecovery`.
 
 ```go
 session, err := client.StartACP(ctx, &fx.ACPConfig{
-    Model:             "zai/glm-5.2",
     PermissionHandler: myHandler, // default: reject_once
 })
 if err != nil {
@@ -112,15 +112,10 @@ aggregated text, thoughts, tool calls, and recovery state.
 
 ## Cost notes
 
-The GLM promotional window covers `zai/glm-5.2` only. These paths bill you
-separately, whichever model you selected:
-
-- `AskOptions.Auto` (`fx ask --auto`) and the ACP `code` session mode run every
-  unresolved permission request through the `openai/gpt-5.4` reviewer.
-- `zai/glm-5.2-fast` is a different, billed model. The `-fast` variants are not
-  in the promotion.
-- Images fall back to `google/gemini-2.5-flash` for vision.
-- Web search bills Perplexity calls through the AI Gateway.
+fx can invoke paid model and tool providers. Pricing, model availability, and
+reviewer behavior are controlled by fx and the configured provider, not this
+SDK. Validate those settings before running integration tests or autonomous
+workflows.
 
 Neither `fx ask --json` nor the ACP prompt result reports token counts. The only
 per-session source is `~/.fx/sessions/<id>/usage-v2.json`, which
@@ -131,17 +126,14 @@ written against).
 
 | Mode | Behavior |
 | --- | --- |
-| `ask` | unresolved sensitive calls should reach the client. See the caveat below. |
-| `auto` | the default: rules first, then the billed reviewer model |
-| `yolo` | no permission checks and no sandbox. Requires `AllowDangerousMode` on `AskOptions` or `ACPConfig`. The `dangerous` subpackage is the recommended path because it additionally checks `FX_GO_ENABLE_DANGEROUS=i-accept-all-risks` and refuses when `GO_ENV` or `NODE_ENV` is `production`, which is a best-effort guard and not a sandbox |
+| `ask` | unresolved sensitive calls reach the ACP `PermissionHandler` |
+| `auto` | rules first, then fx decides unresolved requests using its configured reviewer |
+| `yolo` | no permission checks. Requires `AllowDangerousMode` on `AskOptions` or `ACPConfig`. The `dangerous` subpackage adds an environment opt-in and a best-effort production guard |
 
-Known fx v0.0.4 limitation: in ACP `ask` mode the SDK never observed a
-`session/request_permission` request. Four probes were run on 2026-08-21; three
-got past the upstream outage to a real tool call, including one that first
-issued `session/set_mode` with `modeId: ask`. In all three, fx announced the
-tool call with `status: pending` and then never asked the client and never
-ended the turn. The handler path is implemented and tested against a
-spec-shaped script; see `docs/ACP.md`.
+fx v0.0.5 and newer do not provide a tool sandbox. All modes can execute host
+processes with the permissions of the fx process; `yolo` additionally disables
+permission checks. Use a disposable workspace or an external containment
+boundary for untrusted prompts and repositories.
 
 Yolo mode lives behind a second gate:
 
@@ -156,11 +148,14 @@ result, err := guarded.Yolo(ctx, prompt, &fx.AskOptions{NoSave: true})
 ## Documentation
 
 - `docs/ARCHITECTURE.md`: package layout and the process model
-- `docs/CLI_REFERENCE.md`: the fx v0.0.4 surface the SDK wraps
+- `docs/CLI_REFERENCE.md`: the fx v0.0.6 surface the SDK wraps
 - `docs/ACP.md`: the observed ACP wire protocol
 - `docs/CONTRIBUTING.md`: gates, the mock binary, and the fixtures
 
 ## Development
+
+Filesystem-mutating tests must run in an isolated container. The CI workflow
+runs all gates in Debian-based Go containers.
 
 ```bash
 just lint              # gofmt check and go vet

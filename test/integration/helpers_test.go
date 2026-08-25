@@ -86,7 +86,11 @@ func newClient(t *testing.T, scenario string) *fx.Client {
 	t.Helper()
 	workdir := scratchRepo(t)
 	if realLane() {
-		path, err := exec.LookPath("fx")
+		path := os.Getenv("FX_TEST_BIN")
+		var err error
+		if path == "" {
+			path, err = exec.LookPath("fx")
+		}
 		if err != nil {
 			located, locateErr := fx.LocateBinary()
 			if locateErr != nil {
@@ -114,8 +118,7 @@ func enableDangerous(t *testing.T) {
 	t.Setenv("NODE_ENV", "")
 }
 
-// skipIfProviderDown turns an upstream outage into a skip. The free GLM window
-// returned HTTP 503 repeatedly on 2026-08-21, and that is not an SDK defect.
+// skipIfProviderDown turns a transient upstream outage into a skip.
 func skipIfProviderDown(t *testing.T, err error) {
 	t.Helper()
 	if err == nil {

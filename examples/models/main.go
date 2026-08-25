@@ -28,8 +28,8 @@ func main() {
 	if err != nil {
 		exit(err)
 	}
-	fmt.Printf("model=%s auth=%s team=%s permission_mode=%s sandbox=%s\n",
-		status.Model, status.Auth, status.Team, status.PermissionMode, status.Sandbox)
+	fmt.Printf("model=%s source=%s auth=%s team=%s permission_mode=%s\n",
+		status.Model, status.ModelSource, status.Auth, status.Team, status.PermissionMode)
 
 	catalog, err := client.Models(ctx)
 	if err != nil {

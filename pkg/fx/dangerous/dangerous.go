@@ -78,7 +78,7 @@ func checkEnabled() *fx.Error {
 }
 
 // AskOptions returns a copy of opts with yolo mode enabled: the --yolo flag
-// and FX_PERMISSION_MODE=yolo. Permission checks and the sandbox are off.
+// and FX_PERMISSION_MODE=yolo. Permission checks are disabled.
 func AskOptions(opts *fx.AskOptions) (*fx.AskOptions, error) {
 	if err := checkEnabled(); err != nil {
 		return nil, err
@@ -108,7 +108,7 @@ func ACPConfig(cfg *fx.ACPConfig) (*fx.ACPConfig, error) {
 	return out, nil
 }
 
-// Yolo runs one "fx ask" with permission checks and the sandbox disabled.
+// Yolo runs one "fx ask" with permission checks disabled.
 func (c *Client) Yolo(ctx context.Context, prompt string, opts *fx.AskOptions) (*fx.AskResult, error) {
 	prepared, err := AskOptions(opts)
 	if err != nil {

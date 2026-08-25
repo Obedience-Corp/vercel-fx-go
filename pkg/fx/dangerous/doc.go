@@ -3,8 +3,9 @@
 //
 // Every entry point refuses unless FX_GO_ENABLE_DANGEROUS is set to
 // "i-accept-all-risks", and refuses outright when GO_ENV or NODE_ENV is
-// "production". Yolo mode turns off permission checks and the command
-// sandbox for the spawned process; use it only in disposable workspaces.
+// "production". Yolo mode turns off permission checks; use it only in
+// disposable workspaces. fx v0.0.5 and newer run tools as host processes and
+// do not provide a sandbox in any permission mode.
 //
 // The production refusal inspects only GO_ENV and NODE_ENV, so it is a
 // best-effort guard rather than a sandbox: a deployment that sets neither

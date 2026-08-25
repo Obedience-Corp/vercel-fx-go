@@ -65,18 +65,13 @@ must all be gone after `Close`.
 
 ## Fixtures
 
-`test/testdata` holds real captures from fx v0.0.4 taken on 2026-08-21. Do not
-hand-edit them to make a test pass; if fx changes, recapture and say so in the
-commit.
+`test/testdata` holds sanitized contract fixtures for fx v0.0.6. Update them
+only from a verified release binary, release source, or upstream contract test,
+and record the source in the fixture README. Never commit user paths, account
+identifiers, credentials, or raw session metadata.
 
-The ACP scripts the mock replays are composed from those captures so that one
-session id runs through the whole conversation. `test/testdata/acp/README.md`
-says which files are captures and which are composed.
-
-One file is neither: `request-permission.UNVERIFIED.jsonl` is built from the ACP
-spec because fx v0.0.4 never sent `session/request_permission` in any probe. Its
-name carries the `UNVERIFIED` marker on purpose. If you capture the real thing,
-replace the file, drop the marker, and update `docs/ACP.md`.
+The ACP scripts use one synthetic session id throughout a conversation.
+`test/testdata/acp/README.md` records their provenance and composition.
 
 ## Adding an fx command wrapper
 

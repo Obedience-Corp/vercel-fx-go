@@ -17,6 +17,14 @@ func (c *Client) LoginCommand(ctx context.Context) (*exec.Cmd, error) {
 	return c.interactiveCommand(ctx, "login")
 }
 
+// LoginProviderCommand returns "fx login <provider>" for vercel, codex, or grok.
+func (c *Client) LoginProviderCommand(ctx context.Context, provider string) (*exec.Cmd, error) {
+	if !validAuthProvider(provider) {
+		return nil, validationError("login provider must be \"vercel\", \"codex\", or \"grok\"")
+	}
+	return c.interactiveCommand(ctx, "login", provider)
+}
+
 // SetupCommand returns a configured "fx setup" command for an AI Gateway key.
 func (c *Client) SetupCommand(ctx context.Context) (*exec.Cmd, error) {
 	return c.interactiveCommand(ctx, "setup")
@@ -32,15 +40,39 @@ func (c *Client) LogoutCommand(ctx context.Context) (*exec.Cmd, error) {
 	return c.interactiveCommand(ctx, "logout")
 }
 
-func (c *Client) interactiveCommand(ctx context.Context, verb string) (*exec.Cmd, error) {
+// LogoutProviderCommand returns "fx logout <provider>" for vercel, codex, or grok.
+func (c *Client) LogoutProviderCommand(ctx context.Context, provider string) (*exec.Cmd, error) {
+	if !validAuthProvider(provider) {
+		return nil, validationError("logout provider must be \"vercel\", \"codex\", or \"grok\"")
+	}
+	return c.interactiveCommand(ctx, "logout", provider)
+}
+
+// ProviderCommand returns "fx provider <provider>" for gateway, codex, or grok.
+func (c *Client) ProviderCommand(ctx context.Context, provider string) (*exec.Cmd, error) {
+	if !validSessionProvider(provider) {
+		return nil, validationError("provider must be \"gateway\", \"codex\", or \"grok\"")
+	}
+	return c.interactiveCommand(ctx, "provider", provider)
+}
+
+func (c *Client) interactiveCommand(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	dir, err := c.workDir("")
 	if err != nil {
 		return nil, err
 	}
-	cmd := c.command(ctx, verb)
+	cmd := c.command(ctx, args...)
 	cmd.Dir = dir
 	cmd.Env = c.envWith(managedEnv("", PermissionUnset, nil, nil))
 	return cmd, nil
+}
+
+func validAuthProvider(provider string) bool {
+	return provider == "vercel" || provider == "codex" || provider == "grok"
+}
+
+func validSessionProvider(provider string) bool {
+	return provider == "gateway" || provider == "codex" || provider == "grok"
 }
 
 // LoginFlow is a running "fx login" whose authorization URL has been captured.

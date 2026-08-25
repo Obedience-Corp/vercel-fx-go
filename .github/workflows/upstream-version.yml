@@ -1,0 +1,27 @@
+name: Upstream version
+
+on:
+  schedule:
+    - cron: "17 14 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  current:
+    name: SDK target is latest stable fx
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Compare stable versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tested=$(sed -n 's/^const TestedFXVersion = "\([^"]*\)"$/\1/p' pkg/fx/version.go)
+          latest=$(gh api repos/vercel-labs/fx/releases/latest --jq '.tag_name | ltrimstr("v")')
+          test -n "$tested"
+          if [ "$tested" != "$latest" ]; then
+            echo "SDK targets fx $tested, but latest stable is $latest" >&2
+            exit 1
+          fi

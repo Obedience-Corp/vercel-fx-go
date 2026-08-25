@@ -23,7 +23,7 @@ exec.CommandContext ---> fx ask --json        (one shot, JSON on stdout)
 | `pkg/fx` | the whole client surface |
 | `pkg/fx/dangerous` | yolo mode and `fx upgrade`, behind an explicit opt-in |
 | `test/mockfx` | a Go binary that impersonates fx for the tests |
-| `test/testdata` | real captures from fx v0.0.4 plus the scripts the mock replays |
+| `test/testdata` | sanitized fx v0.0.6 contract fixtures and mock scripts |
 | `test/integration` | `-tags=integration`, mock lane by default |
 | `examples` | small programs that compile against the public API |
 
@@ -41,7 +41,7 @@ Inside `pkg/fx`:
 | `admin.go` | `runJSON` and the read-only command wrappers |
 | `sessions.go` | session, background, and workspace wrappers |
 | `state.go` | read-only helpers over `~/.fx` |
-| `login.go` | interactive command builders and `LoginURL` |
+| `login.go` | provider-aware interactive command builders and `LoginURL` |
 | `acp.go` | the ACP wire types |
 | `acp_session.go` | `StartACP`, the read pump, `Call`, `Notify`, `Close` |
 | `acp_prompt.go` | session lifecycle, `Prompt`, `CollectPrompt` |
@@ -83,8 +83,9 @@ notifications onto a buffered channel, and dispatches agent requests to a
 handler on a separate goroutine so a slow handler never stalls the stream.
 
 Channel closing is guarded by a read-write mutex rather than by ordering alone,
-so a handler that returns during shutdown cannot send on a closed channel. Every
-ACP test asserts with `goleak` that no goroutine survives `Close`.
+so a handler that returns during shutdown cannot send on a closed channel.
+`Close` does not wait for user callbacks that ignore cancellation. SDK-owned
+goroutines are checked with `goleak`.
 
 ## Error type
 
