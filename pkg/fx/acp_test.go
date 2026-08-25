@@ -81,6 +81,42 @@ func TestACPStartMissingBinary(t *testing.T) {
 	requireFxError(t, err, KindTransport)
 }
 
+func TestACPAwaitResponsePrefersBufferedResponseAfterClose(t *testing.T) {
+	closed := make(chan struct{})
+	close(closed)
+	response := make(chan *RPCMessage, 1)
+	response <- &RPCMessage{Result: json.RawMessage(`{"ok":true}`)}
+	session := &ACPSession{closed: closed}
+	var result struct {
+		OK bool `json:"ok"`
+	}
+	if err := session.awaitResponse(context.Background(), "test", response, &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.OK {
+		t.Fatal("buffered response was not decoded")
+	}
+}
+
+func TestACPMalformedSessionUpdateReportsErrorAndPreservesNotification(t *testing.T) {
+	session := &ACPSession{
+		updatesCh: make(chan SessionUpdate, 1),
+		notifCh:   make(chan RPCMessage, 1),
+		errsCh:    make(chan error, 1),
+		closed:    make(chan struct{}),
+	}
+	message := &RPCMessage{Method: "session/update", Params: json.RawMessage(`{"broken"`)}
+	session.handleNotification(message)
+	if err := <-session.errsCh; err == nil {
+		t.Fatal("malformed session update did not report an error")
+	} else {
+		requireFxError(t, err, KindValidation)
+	}
+	if got := <-session.notifCh; got.Method != "session/update" {
+		t.Fatalf("notification method %q", got.Method)
+	}
+}
+
 func TestACPPromptRejectsBadArguments(t *testing.T) {
 	defer goleak.VerifyNone(t)
 	session := startMockACP(t, "full-turn", nil)

@@ -125,6 +125,9 @@ func firstSubcommand(args []string) string {
 func serveLogin() int {
 	fmt.Fprintln(os.Stderr, "Open this URL to authorize fx:")
 	fmt.Fprintln(os.Stderr, "https://vercel.com/oauth/device?user_code=MOCK-CODE")
+	if tailBytes, err := strconv.Atoi(os.Getenv("FX_MOCK_LOGIN_TAIL_BYTES")); err == nil && tailBytes > 0 {
+		fmt.Fprintln(os.Stderr, strings.Repeat("x", tailBytes))
+	}
 	if os.Getenv("FX_MOCK_LOGIN_HANG") == "1" {
 		select {}
 	}

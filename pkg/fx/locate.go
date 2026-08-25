@@ -14,12 +14,19 @@ func LocateBinary() (string, error) {
 	}
 	for _, candidate := range binaryCandidates() {
 		info, err := os.Stat(candidate)
-		if err != nil || info.IsDir() {
+		if err != nil || !isExecutableFile(info) {
 			continue
 		}
 		return candidate, nil
 	}
 	return "", &Error{Kind: KindTransport, Message: "fx binary not found on PATH or in standard install locations"}
+}
+
+func isExecutableFile(info os.FileInfo) bool {
+	if info.IsDir() {
+		return false
+	}
+	return runtime.GOOS == "windows" || info.Mode().Perm()&0o111 != 0
 }
 
 func binaryCandidates() []string {

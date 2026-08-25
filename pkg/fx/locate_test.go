@@ -57,3 +57,22 @@ func TestLocateBinaryIgnoresDirectories(t *testing.T) {
 		t.Fatal("a directory named fx must not be selected")
 	}
 }
+
+func TestLocateBinaryIgnoresNonExecutableFiles(t *testing.T) {
+	if os.PathSeparator == '\\' {
+		t.Skip("Windows does not use Unix executable mode bits")
+	}
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "fx")
+	if err := os.WriteFile(binary, []byte("not executable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	empty := t.TempDir()
+	t.Setenv("PATH", empty)
+	t.Setenv("FX_INSTALL_DIR", dir)
+	t.Setenv("HOME", empty)
+	got, err := LocateBinary()
+	if err == nil && got == binary {
+		t.Fatal("a non-executable file named fx must not be selected")
+	}
+}

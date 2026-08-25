@@ -178,13 +178,18 @@ func awaitLoginURL(ctx context.Context, flow *LoginFlow, streams ...io.Reader) (
 
 func scanURL(r io.Reader, found chan<- string) {
 	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), maxStdinPromptBytes)
+	sent := false
 	for scanner.Scan() {
-		if match := authURLRe.FindString(scanner.Text()); match != "" {
+		if match := authURLRe.FindString(scanner.Text()); match != "" && !sent {
 			select {
 			case found <- match:
+				sent = true
 			default:
 			}
-			return
 		}
+	}
+	if scanner.Err() != nil {
+		_, _ = io.Copy(io.Discard, r)
 	}
 }

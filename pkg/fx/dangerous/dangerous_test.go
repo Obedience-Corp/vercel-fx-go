@@ -148,7 +148,7 @@ func mockBinPath(t *testing.T) string {
 	t.Helper()
 	_, this, _, _ := runtime.Caller(0)
 	repo := filepath.Join(filepath.Dir(this), "..", "..", "..")
-	out := filepath.Join(repo, "test", "mockfx", "bin", "fx-mock")
+	out := filepath.Join(t.TempDir(), "fx-mock")
 	cmd := exec.Command("go", "build", "-o", out, "./test/mockfx")
 	cmd.Dir = repo
 	if combined, err := cmd.CombinedOutput(); err != nil {

@@ -2,9 +2,26 @@ package fx
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"time"
 )
+
+func (p *RetryPolicy) validate() *Error {
+	if p == nil {
+		return nil
+	}
+	if p.MaxAttempts < 0 {
+		return validationError("RetryPolicy.MaxAttempts must not be negative")
+	}
+	if p.InitialDelay < 0 || p.MaxDelay < 0 {
+		return validationError("RetryPolicy delays must not be negative")
+	}
+	if p.Multiplier < 0 || p.Multiplier > 0 && p.Multiplier < 1 || math.IsNaN(p.Multiplier) || math.IsInf(p.Multiplier, 0) {
+		return validationError("RetryPolicy.Multiplier must be zero or a finite value of at least one")
+	}
+	return nil
+}
 
 // RetryPolicy retries retryable failures on top of the retries fx performs
 // internally. It is disabled by default because fx already retries ten times.
@@ -44,12 +61,23 @@ func (p *RetryPolicy) delayFor(attempt int, err *Error) time.Duration {
 		multiplier = 2
 	}
 	for i := 1; i < attempt; i++ {
-		delay = time.Duration(float64(delay) * multiplier)
+		delay = multiplyDuration(delay, multiplier)
+		if p.MaxDelay > 0 && delay >= p.MaxDelay {
+			return p.MaxDelay
+		}
 	}
 	if p.Jitter && delay > 0 {
 		delay = time.Duration(float64(delay) * (0.5 + rand.Float64()/2))
 	}
 	return p.capped(delay)
+}
+
+func multiplyDuration(delay time.Duration, multiplier float64) time.Duration {
+	next := float64(delay) * multiplier
+	if next >= float64(math.MaxInt64) {
+		return time.Duration(math.MaxInt64)
+	}
+	return time.Duration(next)
 }
 
 func (p *RetryPolicy) capped(d time.Duration) time.Duration {

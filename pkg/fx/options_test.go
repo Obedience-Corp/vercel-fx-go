@@ -2,12 +2,14 @@ package fx
 
 import (
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestAskOptionsValidateErrors(t *testing.T) {
+	negativeSteps := -1
 	tests := []struct {
 		name    string
 		opts    *AskOptions
@@ -58,6 +60,12 @@ func TestAskOptionsValidateErrors(t *testing.T) {
 			opts:    &AskOptions{Images: []string{"  "}},
 			wantSub: "image path must not be empty",
 		},
+		{name: "negative max steps", opts: &AskOptions{MaxAgentSteps: &negativeSteps}, wantSub: "MaxAgentSteps"},
+		{name: "negative timeout", opts: &AskOptions{Timeout: -time.Second}, wantSub: "Timeout"},
+		{name: "negative retry attempts", opts: &AskOptions{RetryPolicy: &RetryPolicy{MaxAttempts: -1}}, wantSub: "MaxAttempts"},
+		{name: "negative retry delay", opts: &AskOptions{RetryPolicy: &RetryPolicy{InitialDelay: -time.Second}}, wantSub: "delays"},
+		{name: "invalid retry multiplier", opts: &AskOptions{RetryPolicy: &RetryPolicy{Multiplier: math.Inf(1)}}, wantSub: "Multiplier"},
+		{name: "decreasing retry multiplier", opts: &AskOptions{RetryPolicy: &RetryPolicy{Multiplier: 0.5}}, wantSub: "Multiplier"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -67,6 +75,14 @@ func TestAskOptionsValidateErrors(t *testing.T) {
 				t.Fatalf("message %q does not contain %q", fxErr.Message, tc.wantSub)
 			}
 		})
+	}
+}
+
+func TestRetryDelaySaturatesInsteadOfOverflowing(t *testing.T) {
+	policy := &RetryPolicy{InitialDelay: time.Hour, Multiplier: math.MaxFloat64}
+	got := policy.delayFor(2, &Error{})
+	if got != time.Duration(math.MaxInt64) {
+		t.Fatalf("delay %v, want saturation at %v", got, time.Duration(math.MaxInt64))
 	}
 }
 
@@ -134,6 +150,7 @@ func TestCloneDoesNotAliasCallerState(t *testing.T) {
 }
 
 func TestACPConfigValidateErrors(t *testing.T) {
+	negativeSteps := -1
 	tests := []struct {
 		name    string
 		cfg     *ACPConfig
@@ -143,6 +160,7 @@ func TestACPConfigValidateErrors(t *testing.T) {
 		{name: "relative log file", cfg: &ACPConfig{LogFile: "fx.log"}, wantSub: "absolute path"},
 		{name: "bad context limit", cfg: &ACPConfig{ContextLimits: map[string]string{"file": "huge"}}, wantSub: "byte count"},
 		{name: "unknown permission mode", cfg: &ACPConfig{PermissionMode: PermissionMode("nope")}, wantSub: "unknown permission mode"},
+		{name: "negative max steps", cfg: &ACPConfig{MaxAgentSteps: &negativeSteps}, wantSub: "MaxAgentSteps"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

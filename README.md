@@ -20,6 +20,8 @@ upgrade your install or open a browser.
 Compatibility target: fx v0.0.6. The SDK API is unstable until v1.0. Use
 `fx.TestedFXVersion` for an exact runtime compatibility check.
 
+See [CHANGELOG.md](CHANGELOG.md) for release history and compatibility changes.
+
 This is an independent community project. It is not affiliated with or
 endorsed by Vercel. Vercel and fx names and marks belong to their respective
 owners.
@@ -158,12 +160,9 @@ Filesystem-mutating tests must run in an isolated container. The CI workflow
 runs all gates in Debian-based Go containers.
 
 ```bash
-just lint              # gofmt check and go vet
-just test all          # unit tests
-just test race         # race detector
-just test integration  # integration tests against the mock binary
+just gate              # complete isolated gate on Go 1.24 and Go 1.26
+just test container 1.26  # complete isolated gate on one Go version
 just test integration-real  # the same flows against the real fx (bills the model)
-just build all         # library, dangerous, examples, mock
 ```
 
 ## License
