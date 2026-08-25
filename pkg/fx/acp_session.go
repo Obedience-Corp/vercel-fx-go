@@ -20,9 +20,8 @@ type ACPConfig struct {
 	NoAdditionalDirs bool
 	ContextLimits    map[string]string
 
-	// PermissionMode sets FX_PERMISSION_MODE for the acp process. fx v0.0.4
-	// stalls in "ask" mode after tool_call pending and never asks the client;
-	// see docs/ACP.md. "yolo" requires AllowDangerousMode.
+	// PermissionMode sets FX_PERMISSION_MODE for the acp process. In "ask" mode,
+	// fx sends requests to PermissionHandler. "yolo" requires AllowDangerousMode.
 	PermissionMode     PermissionMode
 	AllowDangerousMode bool
 	MaxAgentSteps      *int
@@ -72,7 +71,6 @@ type ACPSession struct {
 	readDone   chan struct{}
 	stderrDone chan struct{}
 	waitDone   chan error
-	handlers   sync.WaitGroup
 
 	stderrMu  sync.Mutex
 	stderrBuf []byte
@@ -85,11 +83,6 @@ type ACPSession struct {
 
 // StartACP spawns "fx acp" and starts the read pump. Cancelling ctx kills the
 // process; call Close to stop it gracefully.
-//
-// fx v0.0.4 never emits session/request_permission in "ask" mode and the turn
-// stalls after tool_call pending, so a headless caller should use yolo through
-// the dangerous subpackage in a disposable workspace, or auto and accept the
-// billed openai/gpt-5.4 reviewer. See docs/ACP.md.
 func (c *Client) StartACP(ctx context.Context, cfg *ACPConfig) (*ACPSession, error) {
 	session, err := c.startACP(ctx, cfg)
 	if err != nil {
@@ -277,7 +270,6 @@ func (s *ACPSession) writeMessage(m *RPCMessage) *Error {
 func (s *ACPSession) readLoop() {
 	defer func() {
 		s.signalClosed()
-		s.handlers.Wait()
 		s.closeStreams()
 		close(s.readDone)
 	}()

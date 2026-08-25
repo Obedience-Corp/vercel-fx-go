@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// ACPProtocolVersion is the Agent Client Protocol version fx v0.0.4 speaks.
+// ACPProtocolVersion is the Agent Client Protocol version fx speaks.
 const ACPProtocolVersion = 1
 
 // RPCMessage is one newline-delimited JSON-RPC 2.0 frame.
@@ -57,7 +57,7 @@ type FSCapabilities struct {
 	WriteTextFile bool `json:"writeTextFile"`
 }
 
-// ClientInfo identifies the calling client. fx v0.0.4 ignores it.
+// ClientInfo identifies the calling client.
 type ClientInfo struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
@@ -141,12 +141,27 @@ type NewSessionParams struct {
 type NewSessionResult struct {
 	SessionID     string         `json:"sessionId"`
 	ConfigOptions []ConfigOption `json:"configOptions,omitempty"`
+	Modes         *SessionModes  `json:"modes,omitempty"`
+}
+
+// SessionModes reports the current ACP mode and the modes offered by fx.
+type SessionModes struct {
+	CurrentModeID string        `json:"currentModeId"`
+	Available     []SessionMode `json:"availableModes"`
+}
+
+// SessionMode describes one ACP interaction mode.
+type SessionMode struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 // ConfigOption is one adjustable session setting, such as the model.
 type ConfigOption struct {
 	ID           string               `json:"id"`
 	Name         string               `json:"name"`
+	Description  string               `json:"description,omitempty"`
 	Category     string               `json:"category"`
 	Type         string               `json:"type"`
 	CurrentValue string               `json:"currentValue"`
@@ -155,8 +170,10 @@ type ConfigOption struct {
 
 // ConfigOptionChoice is one selectable value of a ConfigOption.
 type ConfigOptionChoice struct {
-	Value string `json:"value"`
-	Name  string `json:"name"`
+	Value          string `json:"value"`
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	PermissionMode string `json:"permissionMode,omitempty"`
 }
 
 // ConfigOptionsResult is the reply to session/set_config_option.
@@ -389,10 +406,11 @@ type PermissionRequest struct {
 
 // PermissionToolCall describes the tool call awaiting approval.
 type PermissionToolCall struct {
-	ToolCallID string `json:"toolCallId,omitempty"`
-	Title      string `json:"title,omitempty"`
-	Kind       string `json:"kind,omitempty"`
-	Status     string `json:"status,omitempty"`
+	ToolCallID string          `json:"toolCallId,omitempty"`
+	Title      string          `json:"title,omitempty"`
+	Kind       string          `json:"kind,omitempty"`
+	Status     string          `json:"status,omitempty"`
+	RawInput   json.RawMessage `json:"rawInput,omitempty"`
 }
 
 // PermissionOption is one answer the client may select.

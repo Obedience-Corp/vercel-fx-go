@@ -97,7 +97,7 @@ func route(args []string) int {
 		return serveACP()
 	}
 	if command == "--version" || command == "-v" {
-		fmt.Println("0.0.4")
+		fmt.Println("0.0.6")
 		return 0
 	}
 	if command == "login" {

@@ -51,9 +51,7 @@ func (s *ACPSession) handleServerRequest(m *RPCMessage) {
 		return
 	}
 	req := decodePermissionRequest(m.Params)
-	s.handlers.Add(1)
 	go func() {
-		defer s.handlers.Done()
 		s.runPermissionHandler(m.ID, req)
 	}()
 }

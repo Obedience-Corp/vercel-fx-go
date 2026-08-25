@@ -11,7 +11,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-const scriptSessionID = "1787339130226-1787339130226384000-5a0f14d5f9458ab7"
+const scriptSessionID = "1700000000000-1700000000000000000-0000000000000001"
 
 func startMockACP(t *testing.T, scenario string, cfg *ACPConfig) *ACPSession {
 	t.Helper()
@@ -95,6 +95,7 @@ func TestACPPromptRejectsBadArguments(t *testing.T) {
 		{name: "no blocks", run: func() error { _, err := session.Prompt(ctx, "s", nil); return err }, wantSub: "at least one block"},
 		{name: "blank text", run: func() error { _, err := session.PromptText(ctx, "s", " "); return err }, wantSub: "must not be empty"},
 		{name: "bad mode", run: func() error { return session.SetMode(ctx, "s", "wild") }, wantSub: "must be \"ask\" or \"code\""},
+		{name: "bad provider", run: func() error { _, err := session.SetProvider(ctx, "s", "wild"); return err }, wantSub: "gateway"},
 		{name: "empty cwd", run: func() error { _, err := session.NewSession(ctx, "", nil); return err }, wantSub: "cwd must not be empty"},
 		{name: "empty close id", run: func() error { return session.CloseSession(ctx, "") }, wantSub: "session id"},
 		{name: "empty model", run: func() error { _, err := session.SetModel(ctx, "s", ""); return err }, wantSub: "must not be empty"},
@@ -122,14 +123,14 @@ func TestACPFullConversation(t *testing.T) {
 	if init.ProtocolVersion != ACPProtocolVersion {
 		t.Fatalf("protocol version %d", init.ProtocolVersion)
 	}
-	if init.AgentInfo.Name != "fx" || init.AgentInfo.Version != "0.0.4" {
+	if init.AgentInfo.Name != "fx" || init.AgentInfo.Version != TestedFXVersion {
 		t.Fatalf("agent info %+v", init.AgentInfo)
 	}
 	if !init.AgentCapabilities.LoadSession || !init.AgentCapabilities.PromptCapabilities.EmbeddedContext {
 		t.Fatalf("capabilities %+v", init.AgentCapabilities)
 	}
 	if init.AgentCapabilities.PromptCapabilities.Image {
-		t.Fatal("fx v0.0.4 rejects image prompt blocks")
+		t.Fatalf("fx %s rejects image prompt blocks", TestedFXVersion)
 	}
 	if init.AgentCapabilities.SessionCapabilities.List == nil {
 		t.Fatal("session list capability must be advertised")
@@ -142,11 +143,25 @@ func TestACPFullConversation(t *testing.T) {
 	if created.SessionID != scriptSessionID {
 		t.Fatalf("session id %q", created.SessionID)
 	}
-	if len(created.ConfigOptions) == 0 || created.ConfigOptions[0].ID != "model" {
+	if len(created.ConfigOptions) != 3 || created.ConfigOptions[0].ID != "provider" {
 		t.Fatalf("config options %+v", created.ConfigOptions)
 	}
-	if created.ConfigOptions[0].CurrentValue != "zai/glm-5.2" {
-		t.Fatalf("current model %q", created.ConfigOptions[0].CurrentValue)
+	if created.ConfigOptions[0].CurrentValue != "gateway" {
+		t.Fatalf("current provider %q", created.ConfigOptions[0].CurrentValue)
+	}
+	if created.ConfigOptions[2].Options[0].PermissionMode != "auto" {
+		t.Fatalf("mode options %+v", created.ConfigOptions[2].Options)
+	}
+	if created.Modes == nil || created.Modes.CurrentModeID != "ask" || len(created.Modes.Available) != 2 {
+		t.Fatalf("session modes %+v", created.Modes)
+	}
+
+	providerOptions, err := session.SetProvider(ctx, created.SessionID, "gateway")
+	if err != nil {
+		t.Fatalf("set provider: %v", err)
+	}
+	if len(providerOptions.ConfigOptions) == 0 || providerOptions.ConfigOptions[0].ID != "provider" {
+		t.Fatalf("provider options %+v", providerOptions.ConfigOptions)
 	}
 
 	options, err := session.SetModel(ctx, created.SessionID, "zai/glm-5.2")

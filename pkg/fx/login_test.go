@@ -60,6 +60,42 @@ func TestInteractiveCommandDisablesBrowserAndUpgrade(t *testing.T) {
 	}
 }
 
+func TestProviderCommands(t *testing.T) {
+	client := mockClient(t, "status")
+	ctx := context.Background()
+	tests := []struct {
+		name string
+		run  func() (*exec.Cmd, error)
+		want []string
+	}{
+		{name: "login codex", run: func() (*exec.Cmd, error) { return client.LoginProviderCommand(ctx, "codex") }, want: []string{"login", "codex"}},
+		{name: "logout grok", run: func() (*exec.Cmd, error) { return client.LogoutProviderCommand(ctx, "grok") }, want: []string{"logout", "grok"}},
+		{name: "select gateway", run: func() (*exec.Cmd, error) { return client.ProviderCommand(ctx, "gateway") }, want: []string{"provider", "gateway"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd, err := tc.run()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := cmd.Args[len(cmd.Args)-2:]
+			if strings.Join(got, " ") != strings.Join(tc.want, " ") {
+				t.Fatalf("args %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestProviderCommandsRejectUnknownProviders(t *testing.T) {
+	client := mockClient(t, "status")
+	if _, err := client.LoginProviderCommand(context.Background(), "gateway"); err == nil {
+		t.Fatal("login accepted the ACP-only gateway provider name")
+	}
+	if _, err := client.ProviderCommand(context.Background(), "vercel"); err == nil {
+		t.Fatal("provider selection accepted the auth-only vercel provider name")
+	}
+}
+
 func TestLoginURLCapturesTheAuthorizationURL(t *testing.T) {
 	client := mockClient(t, "status")
 	flow, err := client.LoginURL(context.Background())

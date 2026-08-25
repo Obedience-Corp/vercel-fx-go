@@ -1,14 +1,13 @@
-# fx CLI reference (v0.0.4)
+# fx CLI reference (v0.0.6)
 
-Captured from the installed binary on 2026-08-21. Docs source:
-https://fx.sh/llms-full.txt. This is the surface the SDK wraps; verify against
-your own build before relying on anything marked "docs".
+Validated against the v0.0.6 release source and binary on 2026-08-25. Upstream
+docs: https://fx.sh/llms-full.txt.
 
 ## Binary
 
 | Fact | Value |
 | --- | --- |
-| Version | `fx v0.0.4`, released 2026-08-19, `vercel-labs/fx`, Apache-2.0, Zig |
+| Version | `fx v0.0.6`, released 2026-08-25, `vercel-labs/fx`, Apache-2.0, Zig |
 | Install | `curl -fsSL https://fx.sh/setup.sh \| bash`; `FX_INSTALL_DIR` overrides `~/.local/bin` |
 | Upgrade | `fx upgrade [--channel stable\|dev] [--json]`; `FX_AUTO_UPGRADE=0` disables checks |
 | State | `~/.fx/` |
@@ -25,7 +24,7 @@ your own build before relying on anything marked "docs".
 | `fx acp` | ACP server over stdio | n/a | `StartACP` |
 | `fx status` | effective config and runtime | yes | `Status` |
 | `fx doctor` | local health checks | yes | `Doctor` |
-| `fx models` | model catalog, ids only | yes | `Models` |
+| `fx models` | provider-aware model catalog | yes | `Models` |
 | `fx permissions` | mode, rules, grants | yes | `Permissions` |
 | `fx credits` | AI Gateway balance | yes | `Credits` |
 | `fx usage [--period 24h\|7d\|30d]` | local token usage and spend | yes | `Usage` |
@@ -36,7 +35,7 @@ your own build before relying on anything marked "docs".
 | `fx background [last\|<id>]` | persisted background commands | yes | `Background`, `BackgroundRecord` |
 | `fx workspace [list\|add P\|remove P\|clear]` | additional directories | yes | `WorkspaceList` and friends |
 | `fx upgrade` | replaces the installed binary | yes | `dangerous.UpgradeCheck` |
-| `fx login` / `logout` / `setup` / `teams` | credential flows, interactive | no | command builders, `LoginURL` |
+| `fx login/logout [vercel\|codex\|grok]` / `setup` / `provider <gateway\|codex\|grok>` / `teams` | provider and credential flows | varies | typed command builders and `LoginURL` |
 | `fx pr` / `fx issue` | draft a PR or issue through `gh` | no | not wrapped |
 | `fx replay <tape>` | replay a `--record` tape | yes | not wrapped |
 
@@ -63,8 +62,8 @@ fx ask [--auto|--yolo] [--image PATH] [--json] [--quiet] [--prompt-permissions]
 
 | Flag | Meaning | SDK field |
 | --- | --- | --- |
-| `--auto` | review unresolved permission requests with `openai/gpt-5.4`, billed | `Auto` |
-| `--yolo` | no permission checks, no sandbox | `Yolo` plus `AllowDangerousMode` |
+| `--auto` | let fx resolve permission requests using its configured reviewer | `Auto` |
+| `--yolo` | no permission checks | `Yolo` plus `AllowDangerousMode` |
 | `--image PATH` | attach an image, repeatable, PNG/JPEG/GIF/WebP up to 20 MiB | `Images` |
 | `--json` | one JSON object on stdout | always sent |
 | `--quiet` | suppress assistant output | `Quiet` |
@@ -85,16 +84,14 @@ diagnostics go to stderr.
 
 ### No model flag
 
-There is no `--model`. The model comes from `FX_MODEL`, then
-`~/.fx/settings.json`, then the compiled default. Always set `AskOptions.Model`
-explicitly rather than trusting the default: the docs say the compiled default
-is `zai/glm-5.2-fast`, which is billed, while this machine resolves to
-`zai/glm-5.2`.
+There is no `--model`. The model comes from `FX_MODEL`, settings, and the active
+provider. Set `AskOptions.Model` explicitly when deterministic selection is
+required.
 
 ### Result JSON
 
 ```json
-{"output":"PONG","exit_code":0,"model":"zai/glm-5.2","session_id":"","steps":0,
+{"output":"PONG","exit_code":0,"model":"provider/model","session_id":"","steps":0,
  "tool_calls":[],"recovery":{"state":"recovered","kind":"auto_recovered",
  "attempt":5,"attempt_limit":10,"delay_seconds":0,"durable":false,
  "message":"recovered, succeeded on attempt 5/10"}}
@@ -104,7 +101,7 @@ is `zai/glm-5.2-fast`, which is billed, while this machine resolves to
   true only when a session was saved, which makes the turn resumable with
   `--resume <id> --continue-recovery`.
 - The docs say failures "can include an `error` field". It was not observed in
-  0.0.4, so the SDK decodes `error` as optional and falls back to `output`.
+  0.0.6, so the SDK decodes `error` as optional and falls back to `output`.
 - `tool_calls[]` always has `name` and `status`. Some tools add fields, so
   `ToolCall` keeps every unknown key in `Extra`.
 - The process exit code mirrors `exit_code`, and `130` means interrupted. The
@@ -132,8 +129,10 @@ settings.
   `rename_file`, `copy_file`, `create_folder`, `run_command`, `open_file`,
   `install_skill`, `vision`, plus any path outside the workspace for every file
   tool. Read, list, glob, and grep inside the workspace never ask.
-- Modes: `ask` prompts and stops headlessly, `auto` applies rules then the
-  billed reviewer, `yolo` disables checks and forces the sandbox to `none`.
+- Modes: ACP `ask` delegates unresolved requests to the client, `auto` applies
+  rules and the configured reviewer, and `yolo` disables permission checks.
+- fx v0.0.5 and newer provide no tool sandbox. Commands execute as host
+  processes with the permissions and filesystem access of fx in every mode.
 - Rules live in `~/.fx/settings.json` under `permission` and are managed with
   `/allowlist` in the interactive shell. There is no CLI verb, and the SDK never
   writes settings.
@@ -146,7 +145,7 @@ settings.
   auth.json         never read by the SDK
   usage.jsonl       ReadUsageLog reads the generation facts
   sessions/<id>/usage-v2.json   SessionUsage reads this, schema gated
-<workspace>/.fx.json   max_agent_steps, max_tool_result_bytes, context, sandbox
+<workspace>/.fx.json   max_agent_steps, max_tool_result_bytes, context
 ```
 
 Session ids look like `<created_ms>-<created_ns>-<16 hex>`, for example
@@ -160,7 +159,7 @@ the code observed. The SDK maps these onto `Kind` and keeps the message.
 
 ## Gaps worth knowing
 
-| Capability | fx v0.0.4 |
+| Capability | fx v0.0.6 |
 | --- | --- |
 | streaming JSON from the one-shot command | no, ACP only |
 | model flag on the one-shot command | no, `FX_MODEL` only |

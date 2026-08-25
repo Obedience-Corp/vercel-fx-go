@@ -73,19 +73,32 @@ func (s *ACPSession) CloseSession(ctx context.Context, sessionID string) error {
 
 // SetModel switches the model of a session and returns the updated options.
 func (s *ACPSession) SetModel(ctx context.Context, sessionID, model string) (*ConfigOptionsResult, error) {
-	if sessionID == "" || model == "" {
-		return nil, validationError("session id and model must not be empty")
+	return s.SetConfigOption(ctx, sessionID, "model", model)
+}
+
+// SetProvider switches a session between gateway, codex, and grok and returns
+// the refreshed provider, model, and mode options.
+func (s *ACPSession) SetProvider(ctx context.Context, sessionID, provider string) (*ConfigOptionsResult, error) {
+	if validSessionProvider(provider) {
+		return s.SetConfigOption(ctx, sessionID, "provider", provider)
+	}
+	return nil, validationError("provider must be \"gateway\", \"codex\", or \"grok\"")
+}
+
+// SetConfigOption selects a string-valued ACP session config option.
+func (s *ACPSession) SetConfigOption(ctx context.Context, sessionID, configID, value string) (*ConfigOptionsResult, error) {
+	if sessionID == "" || configID == "" || value == "" {
+		return nil, validationError("session id, config id, and value must not be empty")
 	}
 	var result ConfigOptionsResult
-	params := SetConfigOptionParams{SessionID: sessionID, ConfigID: "model", Value: model}
+	params := SetConfigOptionParams{SessionID: sessionID, ConfigID: configID, Value: value}
 	if err := s.call(ctx, "session/set_config_option", params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-// SetMode switches a session between "ask" and "code". The "code" mode bills a
-// reviewer model for automatic permission review.
+// SetMode switches a session between "ask" and "code".
 func (s *ACPSession) SetMode(ctx context.Context, sessionID, mode string) error {
 	if mode != "ask" && mode != "code" {
 		return validationError("session mode must be \"ask\" or \"code\"")

@@ -75,6 +75,42 @@ func TestACPTurn(t *testing.T) {
 	t.Logf("acp turn: stop=%s text=%q tools=%d", collected.StopReason, collected.Text, len(collected.ToolCalls))
 }
 
+func TestACPHandshake(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	client := newClient(t, "initialize-and-session-new")
+	session, err := client.StartACP(ctx, &fx.ACPConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	initialized, err := session.Initialize(ctx, fx.ClientCapabilities{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if initialized.AgentInfo.Version != fx.TestedFXVersion {
+		t.Fatalf("ACP agent version %q, want %q", initialized.AgentInfo.Version, fx.TestedFXVersion)
+	}
+	created, err := session.NewSession(ctx, client.WorkingDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"provider": false, "model": false, "mode": false}
+	for _, option := range created.ConfigOptions {
+		if _, ok := want[option.ID]; ok {
+			want[option.ID] = true
+		}
+	}
+	for id, found := range want {
+		if !found {
+			t.Errorf("session/new omitted %q config option", id)
+		}
+	}
+	if created.Modes == nil || len(created.Modes.Available) == 0 {
+		t.Error("session/new omitted ACP modes")
+	}
+}
+
 func modelForLane() string {
 	if realLane() {
 		return realModel

@@ -55,8 +55,11 @@ func TestAdminWrappersDecodeFixtures(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.Model != "zai/glm-5.2" || got.Auth != "fx login" || got.Team != "obediencecorp" {
+		if got.Model != "gpt-5.4" || got.Auth != "ChatGPT subscription" || got.Team != "example-team" {
 			t.Fatalf("status %+v", got)
+		}
+		if got.ModelSource != "Codex" || len(got.ConnectedProviders) != 2 {
+			t.Fatalf("provider status %+v", got)
 		}
 		if !got.AuthRefreshable || got.AuthExpired {
 			t.Fatalf("auth flags %+v", got)
@@ -82,8 +85,11 @@ func TestAdminWrappersDecodeFixtures(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.Count != 230 || len(got.IDs) != 230 {
+		if got.Count != 2 || len(got.IDs) != 2 {
 			t.Fatalf("count %d ids %d", got.Count, len(got.IDs))
+		}
+		if len(got.Models) != 2 || got.Models[0].Source != "Codex" {
+			t.Fatalf("models %+v", got.Models)
 		}
 		if got.PrivateModelsHidden {
 			t.Fatal("fixture reports private models are not hidden")
@@ -142,7 +148,7 @@ func TestAdminWrappersDecodeFixtures(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got.ID != "1787339138496-1787339138496206000-337bbe1c41adeae1" {
+		if got.ID != "1700000000000-1700000000000000000-0000000000000001" {
 			t.Fatalf("id %q", got.ID)
 		}
 	})
@@ -219,7 +225,7 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "0.0.4" {
+	if got != TestedFXVersion {
 		t.Fatalf("version %q", got)
 	}
 }

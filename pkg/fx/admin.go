@@ -8,16 +8,22 @@ import (
 
 // StatusInfo is the effective fx configuration reported by "fx status".
 type StatusInfo struct {
-	Kind                    string `json:"kind"`
-	Model                   string `json:"model"`
-	UpdateChannel           string `json:"update_channel"`
-	BuildChannel            string `json:"build_channel"`
-	BuildRevision           string `json:"build_revision"`
-	Auth                    string `json:"auth"`
-	AuthRefreshable         bool   `json:"auth_refreshable"`
-	AuthExpired             bool   `json:"auth_expired"`
-	Team                    string `json:"team"`
-	PermissionMode          string `json:"permission_mode"`
+	Kind               string   `json:"kind"`
+	Model              string   `json:"model"`
+	ModelSource        string   `json:"model_source,omitempty"`
+	ConnectedProviders []string `json:"connected_providers,omitempty"`
+	UpdateChannel      string   `json:"update_channel"`
+	BuildChannel       string   `json:"build_channel"`
+	BuildRevision      string   `json:"build_revision"`
+	MCPConfigError     string   `json:"mcp_config_error,omitempty"`
+	Auth               string   `json:"auth"`
+	AuthRefreshable    bool     `json:"auth_refreshable"`
+	AuthExpired        bool     `json:"auth_expired"`
+	AuthHelp           string   `json:"auth_help,omitempty"`
+	Team               string   `json:"team"`
+	PermissionMode     string   `json:"permission_mode"`
+	// Sandbox is retained for decoding legacy status replies. Current fx
+	// releases do not provide sandboxing or emit this field.
 	Sandbox                 string `json:"sandbox"`
 	Workspace               string `json:"workspace"`
 	HistoryTurns            int    `json:"history_turns"`
@@ -33,6 +39,7 @@ type DoctorReport struct {
 	FailCount       int           `json:"fail_count"`
 	Workspace       string        `json:"workspace"`
 	Model           string        `json:"model"`
+	ModelSource     string        `json:"model_source,omitempty"`
 	Auth            string        `json:"auth"`
 	AuthRefreshable bool          `json:"auth_refreshable"`
 	Team            string        `json:"team"`
@@ -51,14 +58,21 @@ type DoctorCheck struct {
 // Healthy reports whether no doctor check failed.
 func (d *DoctorReport) Healthy() bool { return d != nil && d.FailCount == 0 }
 
-// ModelCatalog is the "fx models" reply. fx reports ids only, no metadata.
+// ModelCatalog is the provider-aware "fx models" reply.
 type ModelCatalog struct {
-	Kind                string   `json:"kind"`
-	Count               int      `json:"count"`
-	ShownCount          int      `json:"shown_count"`
-	MoreCount           int      `json:"more_count"`
-	PrivateModelsHidden bool     `json:"private_models_hidden"`
-	IDs                 []string `json:"ids"`
+	Kind                string      `json:"kind"`
+	Count               int         `json:"count"`
+	ShownCount          int         `json:"shown_count"`
+	MoreCount           int         `json:"more_count"`
+	PrivateModelsHidden bool        `json:"private_models_hidden"`
+	IDs                 []string    `json:"ids"`
+	Models              []ModelInfo `json:"models,omitempty"`
+}
+
+// ModelInfo identifies a model and the provider route reported by fx.
+type ModelInfo struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
 }
 
 // PermissionsInfo is the "fx permissions" reply. Rules and grants keep their

@@ -7,13 +7,13 @@ newline-delimited JSON-RPC 2.0 over stdin and stdout, protocol version `1`
 The process cwd is the primary workspace. There is one active session and one
 active prompt per connection, each input message is capped at 8 MiB, and stdout
 is reserved for protocol frames. Diagnostics go to `--log-file` or
-`FX_TRACE_LOG`. Initialization fails when no usable Gateway credential exists.
+`FX_TRACE_LOG`. Initialization fails when no usable provider credential exists.
 
 `--log-file` must be an absolute path. `ACPConfig.validate` enforces that,
 because a relative path under the workspace made the server exit before
 answering the first request.
 
-Every transcript quoted here is in `test/testdata/acp/`.
+The corresponding sanitized contract scripts are in `test/testdata/acp/`.
 
 ## Handshake
 
@@ -24,7 +24,7 @@ Client:
  "clientCapabilities":{"fs":{"readTextFile":false,"writeTextFile":false},"terminal":false}}}
 ```
 
-Agent, verbatim from fx v0.0.4:
+Agent shape in fx v0.0.6:
 
 ```json
 {"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1,
@@ -32,33 +32,33 @@ Agent, verbatim from fx v0.0.4:
    "promptCapabilities":{"image":false,"audio":false,"embeddedContext":true},
    "mcpCapabilities":{"http":true,"sse":true},
    "sessionCapabilities":{"list":{},"resume":{},"close":{}}},
- "agentInfo":{"name":"fx","title":"fx","version":"0.0.4"},"authMethods":[]}}
+ "agentInfo":{"name":"fx","title":"fx","version":"0.0.6"},"authMethods":[]}}
 ```
 
 `authMethods` is empty because authentication is the binary's job.
 `embeddedContext:true` means `resource` and `resource_link` prompt blocks are
 accepted; image and audio blocks are rejected.
 
-The SDK advertises no client capabilities by default. fx uses its own tools and
-sandbox, so advertising `fs` or `terminal` would only invite requests the SDK
-would then have to refuse.
+The SDK advertises no client capabilities by default. fx uses its own tools, so
+advertising `fs` or `terminal` would invite requests the SDK would then have to
+refuse.
 
 ## Session lifecycle
 
 | Method | Params | Result | SDK |
 | --- | --- | --- | --- |
-| `session/new` | `{"cwd","mcpServers"}` | `{"sessionId","configOptions":[...]}` then an `available_commands_update` | `NewSession` |
+| `session/new` | `{"cwd","mcpServers"}` | `{"sessionId","configOptions":[...],"modes":{...}}` then an `available_commands_update` | `NewSession` |
 | `session/load` | `{"sessionId","cwd","mcpServers"}` | replays history as updates (docs, not probed) | `LoadSession` |
 | `session/resume` | same | reconnects without replay (docs, not probed) | `ResumeSession` |
 | `session/list` | `{}` | `{"sessions":[{"sessionId","cwd","updatedAt"}]}`, newest first | `ListSessions` |
 | `session/close` | `{"sessionId"}` | `{}` | `CloseSession` |
 | `session/cancel` | `{"sessionId"}`, a notification | the active prompt returns `stopReason: cancelled` | `Cancel` |
-| `session/set_config_option` | `{"sessionId","configId":"model","value"}` | `{"configOptions":[...]}` | `SetModel` |
+| `session/set_config_option` | `{"sessionId","configId":"provider"\|"model","value"}` | `{"configOptions":[...]}` | `SetProvider`, `SetModel`, `SetConfigOption` |
 | `session/set_mode` | `{"sessionId","modeId":"ask"\|"code"}` | `null` | `SetMode` |
 
-`session/new` returns the 230-entry model catalog inline as the `model` config
-option. Session ids are the same ids `fx sessions` reports, and ACP sessions
-show up in `fx sessions --json` for that workspace.
+`session/new` returns `provider`, `model`, and `mode` config options. Model
+catalog contents vary by provider. Session ids are the same ids `fx sessions`
+reports, and ACP sessions show up in `fx sessions --json` for that workspace.
 
 `available_commands_update` lists 17 slash commands: compact, undo, changes,
 review, clear, reset, help, status, model, permissions, allowlist, rules,
@@ -84,7 +84,7 @@ All arrive as `params:{sessionId, update:{sessionUpdate: ...}}`.
 | Kind | Fields observed |
 | --- | --- |
 | `agent_message_chunk` | `content:{type:"text",text}`. Whitespace-only chunks are common |
-| `tool_call` | `toolCallId:"call_<24 hex>"`, `title`, `kind:"execute"\|"read"\|"edit"`, `status:"pending"`. No tool name and no `rawInput` in 0.0.4 |
+| `tool_call` | `toolCallId:"call_<24 hex>"`, `title`, `kind:"execute"\|"read"\|"edit"`, `status:"pending"` |
 | `tool_call_update` | `toolCallId`, `status`, `content:[{type:"content",content:{type:"text",text}}]` on terminal statuses only |
 | `session_info_update` | `_meta.fx.modelResponseRecovery`, the fx retry state |
 | `available_commands_update` | `availableCommands:[...]`, after `session/new` |
@@ -125,50 +125,25 @@ accepts both spellings, so the same struct serves both transports.
 
 Treat that as a denied tool result, not a stream error. The turn continues.
 
-## Permission requests: a v0.0.4 caveat
+## Permission requests
 
-The ACP spec has the agent send a request `session/request_permission` with
-`{"sessionId","toolCall":{...},"options":[{"optionId","name","kind"}]}` where
-kind is `allow_once`, `allow_always`, `reject_once`, or `reject_always`, and the
-client answers `{"outcome":{"outcome":"selected","optionId":"..."}}` or
-`{"outcome":{"outcome":"cancelled"}}`.
+fx v0.0.6 sends `session/request_permission` with the session id, pending tool
+call metadata, validated `rawInput`, and three options: `allow_once`,
+`allow_always`, and `reject_once`. The client answers with a selected option or
+a cancelled outcome. The SDK preserves both `rawInput` and the full raw request.
 
-**fx v0.0.4 was never observed sending it.** Four probes were run on
-2026-08-21 with `FX_PERMISSION_MODE=ask`. One never reached a tool call because
-the upstream provider exhausted recovery first. The other three all reached the
-same state: fx emitted `tool_call` with `status: pending` for a `write_file`
-call, then sent nothing further for the rest of the ten minute probe window and
-never returned a prompt result. One of those three first issued
-`session/set_mode` with `modeId: ask` and got an accepted `null` result, so
-selecting the mode explicitly does not change the outcome. The real transcript
-of that run is `test/testdata/acp/ask-mode-stall.jsonl`.
+The default handler selects `reject_once` and fails closed when a usable reject
+option is absent. Custom handlers receive the session context and should return
+promptly when it is cancelled. `Close` cancels the process and does not wait for
+a callback that ignores cancellation.
 
-The stall is not a provider artifact. In two of the three, the same session had
-already logged `modelResponseRecovery` with `state: recovered` before the tool
-call, so the model turn itself completed and only the permission step hung.
-
-Consequences for the SDK:
-
-- The handler path is implemented and tested, but against
-  `test/testdata/acp/request-permission.UNVERIFIED.jsonl`, which is built from
-  the spec shape rather than captured. Replace it with a real transcript when a
-  build emits one.
-- `PermissionRequest` keeps `Raw`, so an unexpected shape degrades to a deny
-  with a reason rather than a decode failure.
-- The default handler picks `reject_once`, or `reject_always` if that is the
-  only rejection offered, or `cancelled` when nothing matches. It fails closed.
-- A host that needs tool execution today should use `yolo` through the
-  `dangerous` subpackage in a disposable workspace, or `auto` and accept the
-  billed reviewer. Do not build a product flow on ACP `ask` mode until this is
-  fixed upstream.
-
-Mode interaction that was verified:
+Mode interaction in fx v0.0.6:
 
 | Process `FX_PERMISSION_MODE` | Behavior |
 | --- | --- |
-| `yolo` | tools execute with no requests. Verified end to end |
-| `auto` (default) | unresolved calls go to the reviewer; a denial is reported to the model as a failed tool call and the client is never asked. Verified |
-| `ask` | stalls at a pending tool call. See above |
+| `yolo` | tools execute without permission requests |
+| `auto` (default) | fx resolves requests using rules and its configured reviewer |
+| `ask` | unresolved calls are sent to the ACP permission handler |
 
 ## Client-side methods
 

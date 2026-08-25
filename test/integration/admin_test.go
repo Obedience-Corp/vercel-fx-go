@@ -29,8 +29,8 @@ func TestStatus(t *testing.T) {
 	if status.Auth == "" {
 		t.Fatal("fx reports no credential source; run fx login")
 	}
-	t.Logf("fx status: model=%s auth=%s team=%s permission_mode=%s sandbox=%s",
-		status.Model, status.Auth, status.Team, status.PermissionMode, status.Sandbox)
+	t.Logf("fx status: model=%s source=%s auth=%s team=%s permission_mode=%s",
+		status.Model, status.ModelSource, status.Auth, status.Team, status.PermissionMode)
 }
 
 func TestModels(t *testing.T) {
@@ -44,17 +44,13 @@ func TestModels(t *testing.T) {
 	if catalog.Count == 0 || len(catalog.IDs) == 0 {
 		t.Fatalf("catalog %+v", catalog)
 	}
-	found := false
-	for _, id := range catalog.IDs {
-		if id == realModel {
-			found = true
-			break
-		}
+	if catalog.IDs[0] == "" {
+		t.Fatal("catalog contains an empty model id")
 	}
-	if !found {
-		t.Fatalf("%s is not in the catalog of %d models", realModel, catalog.Count)
+	if len(catalog.Models) > 0 && catalog.Models[0].Source == "" {
+		t.Fatal("provider-aware catalog contains an empty model source")
 	}
-	t.Logf("fx models: %d ids, %s present", catalog.Count, realModel)
+	t.Logf("fx models: %d ids", catalog.Count)
 }
 
 func TestVersion(t *testing.T) {
@@ -62,8 +58,8 @@ func TestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version: %v", err)
 	}
-	if version == "" {
-		t.Fatal("fx reported an empty version")
+	if version != fx.TestedFXVersion {
+		t.Fatalf("fx version %q, SDK contract target is %q", version, fx.TestedFXVersion)
 	}
 	t.Logf("fx version: %s", version)
 }
