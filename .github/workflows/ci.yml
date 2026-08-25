@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  GOFLAGS: -buildvcs=false
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -43,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.26-bookworm
     strategy:
+      fail-fast: false
       matrix:
         goos: [linux, darwin, windows]
         goarch: [amd64, arm64]
@@ -57,5 +61,5 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
         with:
-          go-version-input: "1.24"
+          go-version-input: "1.26"
           go-package: ./...
