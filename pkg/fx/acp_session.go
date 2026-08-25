@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +46,9 @@ func (c *ACPConfig) validate() *Error {
 	}
 	if c.LogFile != "" && !filepath.IsAbs(c.LogFile) {
 		return validationError("LogFile must be an absolute path")
+	}
+	if c.MaxAgentSteps != nil && *c.MaxAgentSteps < 0 {
+		return validationError("MaxAgentSteps must not be negative")
 	}
 	return validateContextLimits(c.ContextLimits)
 }
@@ -213,21 +217,30 @@ func (s *ACPSession) call(ctx context.Context, method string, params, result any
 func (s *ACPSession) awaitResponse(ctx context.Context, method string, ch chan *RPCMessage, result any) *Error {
 	select {
 	case resp := <-ch:
-		if resp.Error != nil {
-			return &Error{Kind: KindProcess, Message: method + ": " + resp.Error.Message, Original: resp.Error}
-		}
-		if result == nil || len(resp.Result) == 0 {
-			return nil
-		}
-		if err := json.Unmarshal(resp.Result, result); err != nil {
-			return validationErrorWith("decode result for "+method, err)
-		}
-		return nil
+		return decodeResponse(method, resp, result)
 	case <-ctx.Done():
 		return &Error{Kind: KindInterrupted, Message: method + " canceled", Original: ctx.Err()}
 	case <-s.closed:
+		select {
+		case resp := <-ch:
+			return decodeResponse(method, resp, result)
+		default:
+		}
 		return transportError("fx acp closed before "+method+" responded", nil)
 	}
+}
+
+func decodeResponse(method string, resp *RPCMessage, result any) *Error {
+	if resp.Error != nil {
+		return &Error{Kind: KindProcess, Message: method + ": " + resp.Error.Message, Original: resp.Error}
+	}
+	if result == nil || len(resp.Result) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(resp.Result, result); err != nil {
+		return validationErrorWith("decode result for "+method, err)
+	}
+	return nil
 }
 
 // Notify sends a JSON-RPC notification and does not wait for a reply.
@@ -342,6 +355,8 @@ func (s *ACPSession) handleNotification(m *RPCMessage) {
 			su.Raw = m.Params
 			s.sendUpdate(su)
 			return
+		} else {
+			s.sendErr(validationErrorWith("decode session/update notification", err))
 		}
 	}
 	s.sendNotification(*m)
@@ -356,6 +371,9 @@ func (s *ACPSession) drainStderr(stderr io.ReadCloser) {
 			s.appendStderr(buf[:n])
 		}
 		if err != nil {
+			if !errors.Is(err, io.EOF) && !s.isClosed() {
+				s.sendErr(transportError("read fx acp stderr", err))
+			}
 			return
 		}
 	}

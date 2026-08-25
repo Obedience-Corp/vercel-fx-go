@@ -3,6 +3,8 @@ package fx
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +12,18 @@ import (
 
 	"go.uber.org/goleak"
 )
+
+type failingReadCloser struct {
+	err error
+}
+
+func (r failingReadCloser) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func (failingReadCloser) Close() error {
+	return nil
+}
 
 const scriptSessionID = "1700000000000-1700000000000000000-0000000000000001"
 
@@ -80,6 +94,64 @@ func TestACPStartMissingBinary(t *testing.T) {
 	_, err := client.StartACP(context.Background(), &ACPConfig{})
 	requireFxError(t, err, KindTransport)
 }
+
+func TestACPAwaitResponsePrefersBufferedResponseAfterClose(t *testing.T) {
+	closed := make(chan struct{})
+	close(closed)
+	response := make(chan *RPCMessage, 1)
+	response <- &RPCMessage{Result: json.RawMessage(`{"ok":true}`)}
+	session := &ACPSession{closed: closed}
+	var result struct {
+		OK bool `json:"ok"`
+	}
+	if err := session.awaitResponse(context.Background(), "test", response, &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.OK {
+		t.Fatal("buffered response was not decoded")
+	}
+}
+
+func TestACPMalformedSessionUpdateReportsErrorAndPreservesNotification(t *testing.T) {
+	session := &ACPSession{
+		updatesCh: make(chan SessionUpdate, 1),
+		notifCh:   make(chan RPCMessage, 1),
+		errsCh:    make(chan error, 1),
+		closed:    make(chan struct{}),
+	}
+	message := &RPCMessage{Method: "session/update", Params: json.RawMessage(`{"broken"`)}
+	session.handleNotification(message)
+	if err := <-session.errsCh; err == nil {
+		t.Fatal("malformed session update did not report an error")
+	} else {
+		requireFxError(t, err, KindValidation)
+	}
+	if got := <-session.notifCh; got.Method != "session/update" {
+		t.Fatalf("notification method %q", got.Method)
+	}
+}
+
+func TestACPStderrReadFailureIsReported(t *testing.T) {
+	sentinel := errors.New("read failed")
+	session := &ACPSession{
+		errsCh:     make(chan error, 1),
+		closed:     make(chan struct{}),
+		stderrDone: make(chan struct{}),
+	}
+	session.drainStderr(failingReadCloser{err: sentinel})
+	err := <-session.errsCh
+	fxErr := requireFxError(t, err, KindTransport)
+	if !errors.Is(fxErr, sentinel) {
+		t.Fatalf("error must wrap read failure, got %v", fxErr.Original)
+	}
+	select {
+	case <-session.stderrDone:
+	default:
+		t.Fatal("stderr drain did not signal completion")
+	}
+}
+
+var _ io.ReadCloser = failingReadCloser{}
 
 func TestACPPromptRejectsBadArguments(t *testing.T) {
 	defer goleak.VerifyNone(t)

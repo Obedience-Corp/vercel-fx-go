@@ -5,13 +5,12 @@
 Everything below must pass before a change lands:
 
 ```bash
-just lint                   # gofmt check and go vet
-just test all               # unit tests for pkg/fx and pkg/fx/dangerous
-just test race              # the race detector over pkg/fx/...
-just test integration       # test/integration against the mock binary
-just build all              # library, dangerous, examples, mock
-go build ./examples/...
+just gate  # complete isolated gate under Go 1.24 and Go 1.26
 ```
+
+`just test container 1.26` runs one supported version. The container gate
+checks formatting, vet, unit tests, the race detector, mock integration tests,
+and example builds without exercising filesystem-mutating tests on the host.
 
 `just test integration-real` runs the same integration flows against the real
 `fx`. It bills the configured model and needs an authenticated install, so run
@@ -57,7 +56,8 @@ binary built from `test/mockfx`, which:
 Useful mock knobs: `FX_MOCK_TESTDATA`, `FX_MOCK_EXIT_CODE`, `FX_MOCK_STDERR`,
 `FX_MOCK_SLEEP_MS` (for cancellation tests), `FX_MOCK_ACP_DELAY_MS` (to slow a
 scripted turn so a cancel can land mid stream), `FX_MOCK_PERM_REPLY` (records
-what the SDK answered to an agent request), and `FX_MOCK_READ_STDIN`.
+what the SDK answered to an agent request), `FX_MOCK_READ_STDIN`, and
+`FX_MOCK_LOGIN_TAIL_BYTES` (proves login streams remain drained).
 
 Every test that starts an ACP session ends with `defer goleak.VerifyNone(t)`.
 The read pump, the stderr drain, the wait goroutine, and any handler goroutine

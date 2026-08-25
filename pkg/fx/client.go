@@ -11,8 +11,8 @@ import (
 
 var execCommand = exec.CommandContext
 
-// Client runs the fx binary. It is safe for concurrent use; every call builds
-// its own process.
+// Client runs the fx binary. Calls are safe for concurrent use after the
+// exported configuration fields have been set and are no longer mutated.
 type Client struct {
 	BinPath        string
 	WorkingDir     string

@@ -152,11 +152,17 @@ type UsageReport struct {
 
 // Version returns the version string printed by "fx --version".
 func (c *Client) Version(ctx context.Context) (string, error) {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", &Error{Kind: KindInterrupted, Message: "context done before fx --version", Original: ctxErr}
+	}
 	dir, dirErr := c.workDir("")
 	if dirErr != nil {
 		return "", dirErr
 	}
 	outcome := c.runCommand(ctx, []string{"--version"}, c.adminEnv(), dir, nil)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return "", &Error{Kind: KindInterrupted, Message: "fx --version canceled", ExitCode: outcome.exitCode, Stderr: outcome.stderr, Original: ctxErr}
+	}
 	if outcome.exitCode != 0 || outcome.err != nil {
 		return "", processError("fx --version failed", outcome.exitCode, outcome.stderr, outcome.err)
 	}

@@ -1,7 +1,7 @@
 # vercel-fx-go - Modular Justfile
 # Run `just` to see all available commands
 
-set dotenv-load := true
+set dotenv-load
 
 mod build '.justfiles/build.just'
 mod test '.justfiles/test.just'
@@ -44,10 +44,15 @@ lint:
 coverage-report:
     just coverage report
 
+# Run the release gate in both supported Go versions
+gate:
+    just test container 1.24
+    just test container 1.26
+
 [private]
 build-all:
-  just build all
+    just build all
 
 [private]
 test-all:
-  just test all
+    just test all

@@ -120,6 +120,8 @@ type askInput struct {
 	fromStdin bool
 }
 
+const maxStdinPromptBytes = 8 * 1024 * 1024
+
 // Ask runs one "fx ask" with a background context.
 func (c *Client) Ask(prompt string, opts *AskOptions) (*AskResult, error) {
 	return c.AskCtx(context.Background(), prompt, opts)
@@ -148,9 +150,18 @@ func (c *Client) AskFromStdinCtx(ctx context.Context, r io.Reader, opts *AskOpti
 	if r == nil {
 		return nil, validationError("stdin reader must not be nil")
 	}
-	data, readErr := io.ReadAll(r)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, &Error{Kind: KindInterrupted, Message: "context done before reading stdin prompt", Original: ctxErr}
+	}
+	data, readErr := io.ReadAll(io.LimitReader(r, maxStdinPromptBytes+1))
 	if readErr != nil {
 		return nil, validationErrorWith("read prompt from stdin", readErr)
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, &Error{Kind: KindInterrupted, Message: "context done while reading stdin prompt", Original: ctxErr}
+	}
+	if len(data) > maxStdinPromptBytes {
+		return nil, validationError("stdin prompt exceeds fx 8 MiB limit")
 	}
 	if len(bytes.TrimSpace(data)) == 0 {
 		return nil, validationError("stdin prompt must not be empty")

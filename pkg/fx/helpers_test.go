@@ -12,9 +12,18 @@ import (
 
 var (
 	mockOnce sync.Once
+	mockDir  string
 	mockPath string
 	mockErr  error
 )
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if mockDir != "" {
+		_ = os.RemoveAll(mockDir)
+	}
+	os.Exit(code)
+}
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
@@ -29,7 +38,11 @@ func mockBin(t *testing.T) string {
 	t.Helper()
 	root := repoRoot(t)
 	mockOnce.Do(func() {
-		out := filepath.Join(root, "test", "mockfx", "bin", "fx-mock")
+		mockDir, mockErr = os.MkdirTemp("", "vercel-fx-go-mock-")
+		if mockErr != nil {
+			return
+		}
+		out := filepath.Join(mockDir, "fx-mock")
 		cmd := exec.Command("go", "build", "-o", out, "./test/mockfx")
 		cmd.Dir = root
 		if combined, err := cmd.CombinedOutput(); err != nil {

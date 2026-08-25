@@ -65,7 +65,20 @@ func (o *AskOptions) validate() *Error {
 	if err := validatePermissionMode(o.PermissionMode); err != nil {
 		return err
 	}
+	if err := validateRuntimeOptions(o.MaxAgentSteps, o.Timeout, o.RetryPolicy); err != nil {
+		return err
+	}
 	return validateImages(o.Images)
+}
+
+func validateRuntimeOptions(steps *int, timeout time.Duration, retry *RetryPolicy) *Error {
+	if steps != nil && *steps < 0 {
+		return validationError("MaxAgentSteps must not be negative")
+	}
+	if timeout < 0 {
+		return validationError("Timeout must not be negative")
+	}
+	return retry.validate()
 }
 
 func (o *AskOptions) validateDangerous() *Error {

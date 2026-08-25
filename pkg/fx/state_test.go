@@ -58,6 +58,10 @@ func TestSessionUsageErrors(t *testing.T) {
 		wantErr Kind
 	}{
 		{name: "empty id", id: "", wantSub: "session id", wantErr: KindValidation},
+		{name: "parent traversal", id: "../outside", wantSub: "session id", wantErr: KindValidation},
+		{name: "nested path", id: "nested/session", wantSub: "session id", wantErr: KindValidation},
+		{name: "windows path", id: `nested\session`, wantSub: "session id", wantErr: KindValidation},
+		{name: "oversized id", id: strings.Repeat("a", 256), wantSub: "session id", wantErr: KindValidation},
 		{name: "missing file", id: "absent", wantSub: "usage-v2.json", wantErr: KindTransport},
 		{
 			name: "unsupported file schema", id: "s1",

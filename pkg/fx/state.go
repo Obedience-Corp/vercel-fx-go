@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -63,8 +64,8 @@ const (
 // SessionUsage reads sessions/<id>/usage-v2.json. It never writes and refuses
 // schema versions it was not written against.
 func SessionUsage(ctx context.Context, id string) (*UsageSnapshot, error) {
-	if id == "" {
-		return nil, validationError("session id must not be empty")
+	if err := validateSessionID(id); err != nil {
+		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, &Error{Kind: KindInterrupted, Message: "context done before reading session usage", Original: err}
@@ -78,6 +79,9 @@ func SessionUsage(ctx context.Context, id string) (*UsageSnapshot, error) {
 	if readErr != nil {
 		return nil, transportError("read "+path, readErr)
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, &Error{Kind: KindInterrupted, Message: "context done while reading session usage", Original: err}
+	}
 	var parsed usageFile
 	if jsonErr := json.Unmarshal(data, &parsed); jsonErr != nil {
 		return nil, validationErrorWith("decode "+path, jsonErr)
@@ -87,6 +91,22 @@ func SessionUsage(ctx context.Context, id string) (*UsageSnapshot, error) {
 		return nil, schemaErr
 	}
 	return snapshot, nil
+}
+
+func validateSessionID(id string) *Error {
+	if id == "" || len(id) > 255 || id == "." || id == ".." {
+		return validationError("invalid session id")
+	}
+	for _, char := range id {
+		if !isASCIIAlphanumeric(char) && !strings.ContainsRune("._-", char) {
+			return validationError("invalid session id")
+		}
+	}
+	return nil
+}
+
+func isASCIIAlphanumeric(char rune) bool {
+	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9'
 }
 
 func validateUsageSchema(parsed *usageFile) (*UsageSnapshot, *Error) {

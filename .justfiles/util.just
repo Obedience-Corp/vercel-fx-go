@@ -1,7 +1,7 @@
 # Utility Commands
 # Run `just util` to see all utility commands
 
-set dotenv-load := true
+set dotenv-load
 
 PROJECT_DIR := justfile_directory()
 BIN_DIR := PROJECT_DIR / "bin"
@@ -11,26 +11,26 @@ COVERAGE_DIR := PROJECT_DIR / "coverage"
 @default:
     @echo "Utility Commands"
     @echo "================"
-    @just --list --justfile {{source_file()}}
+    @just --list --justfile {{ source_file() }}
 
 # Clean build artifacts
 clean:
     @echo "Cleaning build artifacts..."
-    rm -rf {{BIN_DIR}}
-    rm -rf {{COVERAGE_DIR}}
-    rm -rf {{PROJECT_DIR}}/test/mockfx/bin
+    rm -rf {{ BIN_DIR }}
+    rm -rf {{ COVERAGE_DIR }}
+    rm -rf {{ PROJECT_DIR }}/test/mockfx/bin
     @echo "Clean complete"
 
 # Download and verify dependencies
 deps:
     @echo "Downloading dependencies..."
-    cd {{PROJECT_DIR}} && go mod download
+    cd {{ PROJECT_DIR }} && go mod download
     @echo "Dependencies ready"
 
 # Tidy dependencies
 tidy:
     @echo "Tidying dependencies..."
-    cd {{PROJECT_DIR}} && go mod tidy
+    cd {{ PROJECT_DIR }} && go mod tidy
     @echo "Dependencies tidied"
 
 # Tidy all modules
@@ -40,7 +40,7 @@ tidy-all: tidy
 lint:
     #!/usr/bin/env bash
     set -euo pipefail
-    cd {{PROJECT_DIR}}
+    cd {{ PROJECT_DIR }}
     echo "Checking gofmt..."
     unformatted=$(gofmt -l . || true)
     if [ -n "$unformatted" ]; then
@@ -56,7 +56,7 @@ lint:
 
 # Format sources
 fmt:
-    cd {{PROJECT_DIR}} && gofmt -w .
+    cd {{ PROJECT_DIR }} && gofmt -w .
 
 # Fix common issues (format + tidy)
 fix: fmt tidy
@@ -68,7 +68,7 @@ version:
     @go version
     @echo ""
     @echo "Module info:"
-    @cd {{PROJECT_DIR}} && go list -m
+    @cd {{ PROJECT_DIR }} && go list -m
 
 # Check the installed fx CLI
 check-fx:

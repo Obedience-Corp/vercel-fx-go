@@ -158,6 +158,27 @@ func TestAskFromStdinCtx(t *testing.T) {
 	}
 }
 
+func TestAskFromStdinCtxRejectsOversizedPrompt(t *testing.T) {
+	client := mockClient(t, "ask-success")
+	reader := strings.NewReader(strings.Repeat("x", maxStdinPromptBytes+1))
+	_, err := client.AskFromStdinCtx(context.Background(), reader, nil)
+	fxErr := requireFxError(t, err, KindValidation)
+	if !strings.Contains(fxErr.Message, "8 MiB") {
+		t.Fatalf("message %q", fxErr.Message)
+	}
+}
+
+func TestAskFromStdinCtxHonorsCanceledContextBeforeRead(t *testing.T) {
+	client := mockClient(t, "ask-success")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := client.AskFromStdinCtx(ctx, strings.NewReader("prompt"), nil)
+	fxErr := requireFxError(t, err, KindInterrupted)
+	if !errors.Is(fxErr, context.Canceled) {
+		t.Fatalf("error must wrap context.Canceled, got %v", fxErr.Original)
+	}
+}
+
 func TestAskCtxHonorsCancellation(t *testing.T) {
 	client := mockClient(t, "ask-success")
 	client.Env = append(client.Env, "FX_MOCK_SLEEP_MS=10000")

@@ -3,6 +3,7 @@ package fx
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -227,6 +228,18 @@ func TestVersion(t *testing.T) {
 	}
 	if got != TestedFXVersion {
 		t.Fatalf("version %q", got)
+	}
+}
+
+func TestVersionHonorsCancellation(t *testing.T) {
+	client := mockClient(t, "status")
+	client.Env = append(client.Env, "FX_MOCK_SLEEP_MS=10000")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := client.Version(ctx)
+	fxErr := requireFxError(t, err, KindInterrupted)
+	if !errors.Is(fxErr, context.Canceled) {
+		t.Fatalf("error must wrap context.Canceled, got %v", fxErr.Original)
 	}
 }
 

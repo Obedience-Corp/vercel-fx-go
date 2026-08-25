@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestInteractiveCommandsAreConfiguredNotRun(t *testing.T) {
@@ -111,6 +112,26 @@ func TestLoginURLCapturesTheAuthorizationURL(t *testing.T) {
 	}
 }
 
+func TestLoginURLContinuesDrainingAfterAuthorizationURL(t *testing.T) {
+	client := mockClient(t, "status")
+	client.Env = append(client.Env, "FX_MOCK_LOGIN_TAIL_BYTES=1048576")
+	flow, err := client.LoginURL(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- flow.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("wait: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		_ = flow.cmd.Process.Kill()
+		t.Fatal("login blocked because an output pipe was not drained")
+	}
+}
+
 func TestLoginURLHonorsCancellation(t *testing.T) {
 	client := mockClient(t, "status")
 	ctx, cancel := context.WithCancel(context.Background())
@@ -119,6 +140,14 @@ func TestLoginURLHonorsCancellation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a canceled context")
 	}
+}
+
+func TestInteractiveCommandHonorsCancellationBeforeConfiguration(t *testing.T) {
+	client := mockClient(t, "status")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := client.LoginCommand(ctx)
+	requireFxError(t, err, KindInterrupted)
 }
 
 func lastArg(cmd *exec.Cmd) string {
