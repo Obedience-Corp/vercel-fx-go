@@ -3,6 +3,8 @@ package fx
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +12,18 @@ import (
 
 	"go.uber.org/goleak"
 )
+
+type failingReadCloser struct {
+	err error
+}
+
+func (r failingReadCloser) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func (failingReadCloser) Close() error {
+	return nil
+}
 
 const scriptSessionID = "1700000000000-1700000000000000000-0000000000000001"
 
@@ -116,6 +130,28 @@ func TestACPMalformedSessionUpdateReportsErrorAndPreservesNotification(t *testin
 		t.Fatalf("notification method %q", got.Method)
 	}
 }
+
+func TestACPStderrReadFailureIsReported(t *testing.T) {
+	sentinel := errors.New("read failed")
+	session := &ACPSession{
+		errsCh:     make(chan error, 1),
+		closed:     make(chan struct{}),
+		stderrDone: make(chan struct{}),
+	}
+	session.drainStderr(failingReadCloser{err: sentinel})
+	err := <-session.errsCh
+	fxErr := requireFxError(t, err, KindTransport)
+	if !errors.Is(fxErr, sentinel) {
+		t.Fatalf("error must wrap read failure, got %v", fxErr.Original)
+	}
+	select {
+	case <-session.stderrDone:
+	default:
+		t.Fatal("stderr drain did not signal completion")
+	}
+}
+
+var _ io.ReadCloser = failingReadCloser{}
 
 func TestACPPromptRejectsBadArguments(t *testing.T) {
 	defer goleak.VerifyNone(t)

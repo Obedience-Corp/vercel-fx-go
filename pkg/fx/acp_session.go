@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -370,6 +371,9 @@ func (s *ACPSession) drainStderr(stderr io.ReadCloser) {
 			s.appendStderr(buf[:n])
 		}
 		if err != nil {
+			if !errors.Is(err, io.EOF) && !s.isClosed() {
+				s.sendErr(transportError("read fx acp stderr", err))
+			}
 			return
 		}
 	}

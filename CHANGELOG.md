@@ -24,6 +24,7 @@ releases may include API changes.
 
 - ACP calls retain a final response delivered concurrently with process exit.
 - Malformed ACP session updates are reported instead of silently downgraded.
+- ACP stderr read failures are surfaced through the session error stream.
 - Login flows continue draining process output after finding the authorization URL.
 - Cancellation from `Version` is consistently classified as interrupted.
 - Mock binaries are isolated per test package, eliminating full-suite build races.
@@ -35,4 +36,4 @@ releases may include API changes.
   examples, and guarded dangerous-mode helpers.
 
 [0.2.0]: https://github.com/Obedience-Corp/vercel-fx-go/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/Obedience-Corp/vercel-fx-go/releases/tag/v0.1.0
+[0.1.0]: https://github.com/Obedience-Corp/vercel-fx-go/tree/v0.1.0

@@ -57,6 +57,9 @@ func (c *Client) ProviderCommand(ctx context.Context, provider string) (*exec.Cm
 }
 
 func (c *Client) interactiveCommand(ctx context.Context, args ...string) (*exec.Cmd, error) {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return nil, &Error{Kind: KindInterrupted, Message: "context done before configuring fx command", Original: ctxErr}
+	}
 	dir, err := c.workDir("")
 	if err != nil {
 		return nil, err

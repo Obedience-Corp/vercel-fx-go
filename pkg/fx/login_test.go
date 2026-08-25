@@ -142,6 +142,14 @@ func TestLoginURLHonorsCancellation(t *testing.T) {
 	}
 }
 
+func TestInteractiveCommandHonorsCancellationBeforeConfiguration(t *testing.T) {
+	client := mockClient(t, "status")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := client.LoginCommand(ctx)
+	requireFxError(t, err, KindInterrupted)
+}
+
 func lastArg(cmd *exec.Cmd) string {
 	if cmd == nil || len(cmd.Args) == 0 {
 		return ""
