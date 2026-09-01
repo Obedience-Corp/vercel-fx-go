@@ -165,6 +165,14 @@ just test container 1.26  # complete isolated gate on one Go version
 just test integration-real  # the same flows against the real fx (bills the model)
 ```
 
+## Related
+
+Go SDKs for other coding-agent CLIs:
+
+- [claude-code-go](https://github.com/lancekrogers/claude-code-go) wraps `claude`
+- [grok-go-sdk](https://github.com/lancekrogers/grok-go-sdk) wraps `grok`
+- [cursor-agent-go](https://github.com/Obedience-Corp/cursor-agent-go) wraps `cursor-agent`
+
 ## License
 
 Apache-2.0. See `LICENSE`.
